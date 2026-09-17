@@ -1,5 +1,19 @@
 # InterPlotComp 3.3.0
 
+* The separable spatial residual is written `ar1(Column):ar1(Row)` rather
+  than `ar1v(Column):ar1(Row)`, so the residual variance is reported as
+  ASReml's `sigma2` instead of a structure parameter with `sigma2` pinned at
+  1. The fit is unchanged: identical log-likelihood and parameter count, for
+  a single trial and for a `dsum()` MET alike, where each environment still
+  receives its own residual scale.
+* Variance components are now read from `summary()$varcomp`, which is on the
+  variance scale, rather than from `fit$vparameters`, which holds ratios to
+  `sigma2` whenever `sigma2` is estimated. Prediction error variances are read
+  from `Cinv` without rescaling, which was already correct. Both were latent
+  no-ops while the residual pinned `sigma2` at 1; without them the move to
+  `ar1(Column)` would have silently rescaled every genetic variance,
+  heritability and reliability.
+
 * The residual process on each field axis is now selectable: AR1 (default),
   AR2, SAR, SAR2 or independent. A second-order process on the competition axis
   accommodates the negative lag-1 residual correlation that interference

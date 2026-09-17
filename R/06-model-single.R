@@ -12,7 +12,7 @@
 # In ASReml-R the two genetic effect sets are tied into one variance structure:
 #
 #   random   = ~ str(~ Geno + N1 + and(N2), ~ us(2):id(nGeno))
-#   residual = ~ ar1v(Column):ar1(Row)
+#   residual = ~ ar1(Column):ar1(Row)
 #
 # `and()` adds N2's design matrix onto N1's rather than creating new effects,
 # so both neighbours of a plot draw on the same competitive effect vector.
@@ -194,7 +194,7 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
   n_geno <- nlevels(d$Geno)
   k <- length(neighbour_names)
 
-  # ar1v(Column):ar1(Row) requires the data sorted with Row varying fastest
+  # ar1(Column):ar1(Row) requires the data sorted with Row varying fastest
   # within Column. Neighbour lookup is key-based, so ordering is safe here.
   if (isTRUE(opts$spatial)) {
     d <- d[order(d$Col_i, d$Row_i), , drop = FALSE]
@@ -435,9 +435,9 @@ single_variance_table <- function(fit, parts, spec, k) {
     if (any(hit)) p$Estimate[which(hit)[1]] else NA_real_
   }
 
-  spatial_var <- if (spec$spatial) {
-    pick("Column:Row!Column!var|Column:Row!var|!var$", "Geno|N1|Rep|Block")
-  } else NA_real_
+  # With no `v` on either axis the residual scale is ASReml's sigma2 rather
+  # than a named structure parameter.
+  spatial_var <- if (spec$spatial) as.numeric(fit$sigma2 %||% NA_real_) else NA_real_
   nugget_var <- if (spec$nugget) pick("units", "Geno|N1") else 0
   residual_var <- if (spec$spatial) spatial_var else pick("units", "Geno|N1")
   total_error <- if (spec$spatial) sum(c(spatial_var, nugget_var), na.rm = TRUE) else residual_var

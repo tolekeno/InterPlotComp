@@ -8,7 +8,7 @@
 #
 #   random = ~ str(~ Env:Geno + Env:N1 + and(Env:N2),
 #                  ~ facv(EffectEnv, r):id(nGeno))
-#   residual = ~ dsum(~ ar1v(Column):ar1(Row) | Env)
+#   residual = ~ dsum(~ ar1(Column):ar1(Row) | Env)
 #
 # True `Env:Geno` interaction terms are used rather than a pre-combined
 # environment-by-genotype factor. A pre-combined factor drops the unobserved

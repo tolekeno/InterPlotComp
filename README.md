@@ -145,7 +145,7 @@ In ASReml-R:
 
 ```r
 random   = ~ Rep + Block + str(~ Geno + N1 + and(N2), ~ us(2):id(nGeno))
-residual = ~ ar1v(Column):ar1(Row)
+residual = ~ ar1(Column):ar1(Row)
 ```
 
 `and()` adds `N2`'s design matrix onto `N1`'s rather than creating new effects,
@@ -171,8 +171,8 @@ estimates two free correlations and can; SAR2 is its symmetric-autoregressive
 counterpart, often better behaved on a short field axis.
 
 ```r
-residual = ~ ar1v(Column):ar2(Row)              # single trial
-residual = ~ dsum(~ ar1v(Column):ar2(Row) | Env) # MET
+residual = ~ ar1(Column):ar2(Row)              # single trial
+residual = ~ dsum(~ ar1(Column):ar2(Row) | Env) # MET
 ```
 
 Fit both and compare AIC. A clear drop means the second-order process earns its
@@ -190,7 +190,7 @@ design matrix — they contribute no competitive effect rather than being droppe
 fixed    = Yield ~ Env
 random   = ~ Rep + Block + str(~ Env:Geno + Env:N1 + and(Env:N2),
                                ~ facv(EffectEnv, r):id(nGeno))
-residual = ~ dsum(~ ar1v(Column):ar1(Row) | Env)
+residual = ~ dsum(~ ar1(Column):ar1(Row) | Env)
 ```
 
 The 2·E direct and competitive environment effects share one joint covariance

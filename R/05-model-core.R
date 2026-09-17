@@ -48,13 +48,18 @@ RESIDUAL_PROCESSES <- c(
 
 #' Residual formula text for a separable two-dimensional field process.
 #'
-#' The scale parameter is carried by the column term, so exactly one variance
-#' is estimated however the two axes are specified.
+#' Neither axis carries a `v` suffix, so the scale is ASReml's own residual
+#' variance, `sigma2`. The alternative, putting the variance on the column term
+#' as `ar1v(Column)`, fits an identical model - verified to the fourth decimal
+#' of the log-likelihood with the same number of parameters, for a single trial
+#' and for a `dsum()` MET alike, where each section still gets its own scale.
+#' It merely reports the residual variance as a structure parameter and pins
+#' `sigma2` at 1, which is harder to read.
 #'
 #' @param row_process,col_process names from `RESIDUAL_PROCESSES`
 #' @noRd
 spatial_residual_text <- function(row_process = "ar1", col_process = "ar1") {
-  sprintf("%sv(Column):%s(Row)", col_process, row_process)
+  sprintf("%s(Column):%s(Row)", col_process, row_process)
 }
 
 #' Plain-English description of a separable residual specification.
@@ -82,7 +87,7 @@ asreml_version <- function() {
 #' Attach ASReml-R, converting a licence failure into an actionable message.
 #'
 #' ASReml's special model functions (`str`, `and`, `us`, `corgh`, `facv`, `id`,
-#' `ar1v`, `dsum`) are resolved when the model formulae are evaluated, so the
+#' `ar1`, `dsum`) are resolved when the model formulae are evaluated, so the
 #' package must be attached rather than merely namespace-loaded.
 #' @noRd
 load_asreml <- function() {
@@ -134,7 +139,16 @@ asreml_status <- function() {
 # Variance parameters
 # ---------------------------------------------------------------------------
 
-#' Tidy `fit$vparameters` with the constraint codes attached.
+#' Tidy variance parameters on the variance scale, with constraint codes.
+#'
+#' IMPORTANT: `fit$vparameters` holds *ratios to sigma2*, not variances,
+#' whenever sigma2 is estimated rather than pinned at 1 - which is the case for
+#' any residual written without a `v` suffix, such as `ar1(Column):ar1(Row)`.
+#' Reading it directly would silently rescale every genetic variance, and with
+#' it the pure-stand variance, the heritabilities and the reliabilities, by a
+#' factor of sigma2. The absolute components come from `summary()$varcomp`,
+#' which ASReml has already scaled correctly for each parameter type; only the
+#' type and constraint codes are taken from the raw object.
 #' @noRd
 parameter_table <- function(fit) {
   v <- fit$vparameters
@@ -143,9 +157,19 @@ parameter_table <- function(fit) {
   if (is.null(type) || length(type) != length(v)) type <- rep(NA_character_, length(v))
   con <- fit$vparameters.con
   if (is.null(con) || length(con) != length(v)) con <- rep(NA_character_, length(v))
+
+  nm <- names(v) %||% paste0("par", seq_along(v))
+  est <- as.numeric(v)
+  vc <- tryCatch(summary(fit)$varcomp, error = function(e) NULL)
+  if (!is.null(vc) && "component" %in% names(vc)) {
+    hit <- match(nm, rownames(vc))
+    ok <- !is.na(hit)
+    est[ok] <- as.numeric(vc$component[hit[ok]])
+  }
+
   data.frame(
-    Parameter = names(v) %||% paste0("par", seq_along(v)),
-    Estimate  = as.numeric(v),
+    Parameter = nm,
+    Estimate  = est,
     Type      = toupper(as.character(type)),
     Constraint = as.character(con),
     stringsAsFactors = FALSE
@@ -390,7 +414,11 @@ pev_direct_competition <- function(fit, direct_labels, competition_labels, k) {
   if (is.null(nm)) return(NULL)
   if (!all(direct_labels %in% nm) || !all(competition_labels %in% nm)) return(NULL)
 
-  s2 <- fit$sigma2 %||% 1
+  # Cinv is already on the variance scale: sqrt(Cinv[i, i]) reproduces the same
+  # standard error whether the residual is written ar1v(Column) with sigma2
+  # pinned at 1, or ar1(Column) with sigma2 estimated. Multiplying by sigma2
+  # here would be a silent no-op in the first case and simply wrong in the
+  # second.
   di <- match(direct_labels, nm)
   ci <- match(competition_labels, nm)
 
@@ -401,10 +429,10 @@ pev_direct_competition <- function(fit, direct_labels, competition_labels, k) {
   cdc <- vapply(seq_along(di), function(i) as.numeric(C[di[i], ci[i]]), numeric(1))
 
   data.frame(
-    pev_direct      = s2 * cdd,
-    pev_competition = s2 * ccc,
-    cov_direct_competition = s2 * cdc,
-    pev_pure        = s2 * (cdd + k^2 * ccc + 2 * k * cdc),
+    pev_direct      = cdd,
+    pev_competition = ccc,
+    cov_direct_competition = cdc,
+    pev_pure        = cdd + k^2 * ccc + 2 * k * cdc,
     stringsAsFactors = FALSE
   )
 }
