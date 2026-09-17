@@ -395,7 +395,7 @@ R/14-run-app.R        app_ui(), app_server(), run_app()
   neighbouring plots. *Biometrics* 42:231–251.
 * Stringer J.K., Cullis B.R. & Thompson R. (2011) Improved analysis of trials
   with competition. *JABES* 16:269–281.
-* Hunt C.H., Smith A.B., Jordan D.R. & Cullis B.R. (2012) Predicting additive
+* Hunt C.H., Smith A.B., Jordan D.R. & Cullis B.R. (2013) Predicting additive
   and non-additive genetic effects from trials where traits are affected by
   interplot competition. *JABES* 18:53–63.
   [doi:10.1007/s13253-012-0117-7](https://doi.org/10.1007/s13253-012-0117-7)
