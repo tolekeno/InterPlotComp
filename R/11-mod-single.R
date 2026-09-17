@@ -91,7 +91,6 @@ single_ui <- function(id) {
     # ---- main results area -------------------------------------------------
     bslib::navset_card_tab(
       id = ns("tabs"),
-      height = "100%",
 
       bslib::nav_panel(
         "Data & layout", icon = ic("table"),

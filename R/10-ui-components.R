@@ -128,24 +128,7 @@ dt_table <- function(df, digits = 4, page_length = 15, scroll_y = NULL,
       pageLength = page_length, scrollX = TRUE, scrollY = scroll_y,
       lengthMenu = list(lengths, length_labels),
       dom = "lftip", autoWidth = FALSE,
-      columnDefs = list(list(className = "dt-right", targets = "_all")),
-      # A horizontally scrolling table first drawn inside a hidden container
-      # measures every column as zero wide and collapses to an empty strip,
-      # even though the rows are present in the DOM. Re-measuring once the
-      # element actually has a width restores it.
-      initComplete = DT::JS(
-        "function(settings) {",
-        "  var api = this.api();",
-        "  var el = api.table().container();",
-        "  var fix = function() { api.columns.adjust(); };",
-        "  setTimeout(fix, 60);",
-        "  if (window.ResizeObserver) {",
-        "    var seen = false;",
-        "    new ResizeObserver(function(entries) {",
-        "      if (!seen && entries[0].contentRect.width > 0) { seen = true; fix(); }",
-        "    }).observe(el);",
-        "  }",
-        "}")
+      columnDefs = list(list(className = "dt-right", targets = "_all"))
     )
   )
   if (length(decimal_cols)) {
@@ -163,11 +146,18 @@ dt_table <- function(df, digits = 4, page_length = 15, scroll_y = NULL,
 }
 
 #' Card wrapper with a consistent header.
-panel_card <- function(title, ..., icon_name = NULL, full_screen = TRUE) {
+panel_card <- function(title, ..., icon_name = NULL, full_screen = TRUE,
+                       fill = FALSE) {
+  # `fill = FALSE` is deliberate. The application runs inside a fillable
+  # page_navbar, where a card that is a direct flex child is stretched or
+  # squashed by the flex layout: a short table card collapses to zero height
+  # and its contents disappear even though they are present in the DOM. Cards
+  # that genuinely should grow (plots) pass fill = TRUE explicitly.
   bslib::card(
     full_screen = full_screen,
+    fill = fill,
     bslib::card_header(if (!is.null(icon_name)) shiny::tagList(ic(icon_name), " "), title),
-    bslib::card_body(...)
+    bslib::card_body(..., fill = fill)
   )
 }
 

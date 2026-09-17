@@ -72,7 +72,7 @@ met_ui <- function(id) {
     ),
 
     bslib::navset_card_tab(
-      id = ns("tabs"), height = "100%",
+      id = ns("tabs"),
 
       bslib::nav_panel(
         "Data & layout", icon = ic("table"),

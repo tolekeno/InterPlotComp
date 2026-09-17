@@ -49,7 +49,11 @@ ui <- bslib::page_navbar(
   title = shiny::tagList(ic("bounding-box"), " Inter-plot Competition"),
   id = "main_nav",
   theme = app_theme(),
-  fillable = TRUE,
+  # Normal document flow, not a fillable flex layout. Every plot in this
+  # application already has an explicit height, so filling the viewport buys
+  # nothing, while it makes short cards collapse to zero height inside the
+  # flex container - which silently hid the summary tables.
+  fillable = FALSE,
   window_title = "Inter-plot Competition Analysis",
   header = shiny::tags$head(
     shiny::tags$style(app_css()),
