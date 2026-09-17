@@ -332,6 +332,17 @@ be installed automatically by public hosting services.
 
 ---
 
+## Licence
+
+This application is released under the MIT Licence (see `LICENSE`).
+
+That covers **this code only**. ASReml-R is separate commercial software
+licensed by VSNi under its own terms; the MIT licence here grants no rights to
+it whatsoever, and the application cannot compute without a valid ASReml-R
+licence that you obtain and activate yourself.
+
+---
+
 ## References
 
 * Besag J. & Kempton R. (1986) Statistical analysis of field experiments using
