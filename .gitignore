@@ -1,0 +1,37 @@
+# ---------------------------------------------------------------------------
+# NEVER commit an ASReml licence. It is commercial, machine-bound, and
+# personal to the licensee.
+# ---------------------------------------------------------------------------
+*.lic
+*.licence
+*.license
+asreml.lic
+.asreml/
+asreml_licence*
+*licence_key*
+*license_key*
+
+# R session artefacts
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+.Renviron
+.Rprofile
+
+# Output and scratch files
+*.pdf
+*.png
+*.tiff
+*.svg
+*.eps
+*.xlsx
+*.csv
+!inst/**/*.csv
+rsconnect/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
