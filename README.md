@@ -6,11 +6,6 @@ It estimates, for every genotype, the effect it expresses in its own plot, the
 effect it imposes on its neighbours, and the value it would express in a pure
 stand — in a single trial or across a series of environments.
 
-It implements the analysis of Keno et al. (2026), which showed that inter-plot
-competition in hybrid maize multi-environment yield trials in Ethiopia can
-reduce the rate of genetic gain
-([TAG 139:174](https://doi.org/10.1007/s00122-026-05255-0)).
-
 Version 3.1.0.
 
 ---
@@ -350,11 +345,6 @@ licence that you obtain and activate yourself.
 
 ## References
 
-* Keno T., Mace E., Godwin I., Jordan D. & Kelly A. (2026) Inter-plot
-  competition in hybrid maize multi-environment yield trials in Ethiopia can
-  reduce rate of genetic gain. *Theoretical and Applied Genetics* 139:174.
-  [doi:10.1007/s00122-026-05255-0](https://doi.org/10.1007/s00122-026-05255-0)
-  — the study this application implements.
 * Besag J. & Kempton R. (1986) Statistical analysis of field experiments using
   neighbouring plots. *Biometrics* 42:231–251.
 * Stringer J.K., Cullis B.R. & Thompson R. (2011) Improved analysis of trials
@@ -367,3 +357,7 @@ licence that you obtain and activate yourself.
   generation variety trials with correlated data. *JABES* 11:381–393.
 * VanRaden P.M. (2008) Efficient methods to compute genomic predictions.
   *Journal of Dairy Science* 91:4414–4423.
+* Keno T., Mace E., Godwin I., Jordan D. & Kelly A. (2026) Inter-plot
+  competition in hybrid maize multi-environment yield trials in Ethiopia can
+  reduce rate of genetic gain. *Theoretical and Applied Genetics* 139:174.
+  [doi:10.1007/s00122-026-05255-0](https://doi.org/10.1007/s00122-026-05255-0)

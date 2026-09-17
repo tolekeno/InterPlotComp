@@ -43,21 +43,14 @@ guide_ui <- function(id) {
                    "Selecting on plot yield alone therefore favours aggressive ",
                    "genotypes whose advantage disappears once every plot is ",
                    "planted to the same entry."),
-          shiny::p(
-            shiny::strong("This application implements "),
-            shiny::a(href = "https://doi.org/10.1007/s00122-026-05255-0",
-                     target = "_blank", rel = "noopener",
-                     "Keno, Mace, Godwin, Jordan & Kelly (2026)"),
-            ", ", shiny::em(paste("Inter-plot competition in hybrid maize",
-                                  "multi-environment yield trials in Ethiopia can",
-                                  "reduce rate of genetic gain")),
-            ", Theoretical and Applied Genetics 139:174."),
-          shiny::p(shiny::strong("Methodological references. "),
+          shiny::p(shiny::strong("Key references. "),
                    "Besag & Kempton (1986) Biometrics 42:231-251; ",
                    "Stringer, Cullis & Thompson (2011) JABES 16:269-281; ",
                    "Gilmour, Cullis & Verbyla (1997) JABES 2:269-293; ",
                    "Smith, Cullis & Thompson (2001) Biometrics 57:1138-1147; ",
-                   "Cullis, Smith & Coombes (2006) JABES 11:381-393.")
+                   "Cullis, Smith & Coombes (2006) JABES 11:381-393; ",
+                   "Keno, Mace, Godwin, Jordan & Kelly (2026) ",
+                   "Theor Appl Genet 139:174.")
         ),
 
         bslib::accordion_panel(
