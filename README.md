@@ -206,7 +206,25 @@ Three structures are offered:
 |---|---|---|
 | **Joint factor-analytic** | 2E(r+1) | Direct and competitive effects may have different G×E patterns. Most general. |
 | **Separable us(2) × FA** | 3 + E(r+1) | One shared environment correlation pattern. Fits where the joint model is singular. |
+| **Separate fa() per effect** | 2E(r+1) | An ordinary `fa()` term for each effect. The direct–competition covariance becomes a structural zero. |
 | **Diagonal** | 2E | No between-environment correlation. The null model for G×E. |
+
+> **`fa()` versus `facv()`.** They fit the same covariance, ΛΛ′ + Ψ; `fa()`
+> additionally materialises the latent factor scores. But `fa()` cannot go
+> inside the joint `str()` block: it augments the term with its own
+> latent-factor levels, so ASReml reports
+> `Size of direct product (468) does not conform with total size of included
+> terms (416)` — the gap being rank × nGeno. Fitting `fa()` therefore requires
+> giving up the joint structure, which is what the *Separate fa() per effect*
+> option does.
+>
+> That has a real cost. On the worked example the joint model fits 10.2
+> log-likelihood units better **for the same 30 parameters**, and the
+> direct–competition correlations it estimates are −0.96, −0.18, −0.47 and
+> −0.88. Forcing them to zero inflates the pure-stand variance by 1.3× to 8.7×
+> depending on the environment, because the `2k·Cov(D, C)` term is dropped. The
+> joint structure remains the default for that reason; the application states
+> the limitation whenever the separate-`fa()` structure is in use.
 
 Pure-stand covariance across environments:
 

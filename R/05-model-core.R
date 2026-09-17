@@ -276,20 +276,28 @@ genetic_covariance_2x2 <- function(fit, structure) {
 #' needed.
 #'
 #' @param fit fitted asreml object
-#' @param structure "facv", "separable" or "diag"
+#' @param structure "facv", "separable", "fa" or "diag"
 #' @param effect_levels level names of the 2E-level effect factor, direct first
-#' @param env_levels level names of the E-level environment factor (separable)
+#' @param env_levels level names of the E-level environment factor
 #' @param rank factor-analytic rank
+#' @param fa_terms for structure "fa", the two model-term strings whose
+#'   parameters carry the direct and competitive covariances
 #' @noRd
 genetic_covariance_met <- function(fit, structure, effect_levels,
-                                   env_levels = NULL, rank = 1L) {
+                                   env_levels = NULL, rank = 1L,
+                                   fa_terms = NULL) {
   p <- parameter_table(fit)
   if (!nrow(p)) stop("ASReml returned no variance parameters.", call. = FALSE)
   dim <- length(effect_levels)
 
-  # Match "<anything>!<factor>_<level>!<suffix>" or "...!<factor>_<level>".
-  value_for <- function(levels, factor_name, suffix = NULL) {
-    key <- paste0("!", factor_name, "_", levels)
+  # Match "<anything>!<factor>_<level>!<suffix>", "...!<factor>_<level>", or
+  # for an fa() term "<term>!<level>!<suffix>".
+  value_for <- function(levels, factor_name, suffix = NULL, prefix = NULL) {
+    key <- if (is.null(prefix)) {
+      paste0("!", factor_name, "_", levels)
+    } else {
+      paste0(prefix, "!", levels)
+    }
     if (!is.null(suffix)) key <- paste0(key, "!", suffix)
     idx <- vapply(key, function(k) {
       hit <- which(endsWith(p$Parameter, k))
@@ -315,6 +323,37 @@ genetic_covariance_met <- function(fit, structure, effect_levels,
     note <- sprintf(
       "Joint FA(%d) over %d direct and %d competitive environment effects: G = Lambda Lambda' + Psi.",
       rank, dim / 2, dim / 2)
+
+  } else if (structure == "fa") {
+    # Separate fa() terms for the direct and competitive effects. Each supplies
+    # its own E x E factor-analytic covariance; ASReml names the parameters
+    # "<term>!<environment>!var" and "<term>!<environment>!fa<k>".
+    #
+    # The two terms are independent by construction, so the joint matrix is
+    # block diagonal and the direct-competition covariance is structurally
+    # zero. That is a property of this model, not an estimate: it cannot be
+    # tested, and the pure-stand covariance reduces to G_D + k^2 G_C.
+    if (is.null(fa_terms)) stop("fa_terms are required for the fa structure.",
+                                call. = FALSE)
+    block <- function(term) {
+      psi <- value_for(env_levels, NULL, "var", prefix = term)
+      L <- vapply(seq_len(rank), function(r) {
+        as.numeric(value_for(env_levels, NULL, paste0("fa", r), prefix = term))
+      }, numeric(length(env_levels)))
+      L <- matrix(L, nrow = length(env_levels), ncol = rank)
+      if (anyNA(psi) || anyNA(L)) stop_extract("the separate fa() parameters")
+      L %*% t(L) + diag(as.numeric(psi), length(env_levels))
+    }
+    Gd <- block(fa_terms[["direct"]])
+    Gc <- block(fa_terms[["competition"]])
+    e <- length(env_levels)
+    G <- matrix(0, 2L * e, 2L * e)
+    G[seq_len(e), seq_len(e)] <- Gd
+    G[e + seq_len(e), e + seq_len(e)] <- Gc
+    note <- sprintf(paste(
+      "Separate FA(%d) covariances for the direct and competitive effects.",
+      "The direct-competition covariance is zero by construction, not estimated."),
+      rank)
 
   } else if (structure == "separable") {
     # us(2) between direct and competitive effects, FA(rank) between

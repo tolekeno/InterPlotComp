@@ -36,7 +36,12 @@ met_ui <- function(id) {
           note("The joint structure lets direct and competitive effects have ",
                "different patterns of genotype-by-environment interaction. The ",
                "separable structure assumes one shared pattern but uses far ",
-               "fewer parameters, so it fits when the joint model cannot.")
+               "fewer parameters, so it fits when the joint model cannot. ",
+               shiny::strong("Separate fa()"), " fits an ordinary ",
+               shiny::code("fa()"), " term to each effect, which ASReml ",
+               "cannot do inside the joint block; the price is that the ",
+               "direct-competition covariance becomes a structural zero ",
+               "rather than an estimate.")
         ),
         bslib::accordion_panel(
           "4. Genetic relationship", value = "relationship",
@@ -168,7 +173,9 @@ met_ui <- function(id) {
         "Variance & heritability", icon = ic("bar-chart-steps"),
         panel_card("Genetic variance by environment",
                    table_download_ui(ns("dl_variance"), "Download variances"),
-                   DT::DTOutput(ns("variance")), icon_name = "calculator",
+                   DT::DTOutput(ns("variance")),
+                   shiny::uiOutput(ns("dc_note")),
+                   icon_name = "calculator",
                    full_screen = FALSE),
         shiny::uiOutput(ns("fa_card")),
         panel_card("All ASReml variance parameters", DT::DTOutput(ns("varcomp")),
@@ -436,6 +443,16 @@ met_server <- function(id) {
                        "the requested model was not identifiable; a nested model ",
                        "was used. See ", shiny::em("Model detail"), ".")
           },
+          if (isTRUE(r$dc_covariance_fixed)) {
+            shiny::div(
+              shiny::strong("The direct-competition covariance is fixed at zero. "),
+              "Separate fa() terms make the direct and competitive effects ",
+              "independent by construction, so that covariance is not an ",
+              "estimate and cannot be tested. Pure-stand variance reduces to ",
+              "Var(D) + k\u00b2 Var(C) and will be overstated wherever the two ",
+              "effects are in fact negatively correlated. Use the joint ",
+              "factor-analytic structure to estimate it.")
+          },
           if (r$correlations_assumed) {
             shiny::div(shiny::strong("Genetic correlations were not estimated. "),
                        "The successful model assumes environments are ",
@@ -473,6 +490,15 @@ met_server <- function(id) {
     table_download_server("dl_values", function() res()$values, "met_genetic_values")
 
     output$variance <- DT::renderDT({ dt_table(res()$variance, digits = 5, page_length = 10) })
+    output$dc_note <- shiny::renderUI({
+      if (!isTRUE(res()$dc_covariance_fixed)) return(NULL)
+      note(shiny::strong("Direct-competition covariance and correlation are ",
+                         "zero by construction, not estimated. "),
+           "The fitted structure makes the two effects independent, so the ",
+           "pure-stand variance omits the 2k Cov(D, C) term. Where that ",
+           "covariance is negative, as it usually is, the pure-stand ",
+           "variance shown here is an overestimate.")
+    })
     table_download_server("dl_variance", function() res()$variance, "met_environment_variances")
     output$varcomp <- DT::renderDT({ dt_table(res()$varcomp, digits = 5, page_length = 15) })
 

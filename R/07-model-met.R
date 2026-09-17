@@ -33,6 +33,7 @@
 MET_STRUCTURES <- c(
   "Joint factor-analytic over direct + competitive effects" = "facv",
   "Separable us(2) \u00d7 factor-analytic environments"      = "separable",
+  "Separate fa() per effect \u2014 no direct-competition covariance" = "fa",
   "Diagonal \u2014 no genetic correlation between environments" = "diag"
 )
 
@@ -61,7 +62,7 @@ add_met_dummy_factors <- function(d) {
 #' free parameters does not exceed n(n + 1)/2.
 #' @noRd
 max_fa_rank <- function(n_env, structure = "facv") {
-  n <- if (structure == "separable") n_env else 2L * n_env
+  n <- if (structure %in% c("separable", "fa")) n_env else 2L * n_env
   r <- 1L
   while ((r + 1L) * n - (r + 1L) * r / 2 <= n * (n + 1) / 2 && r < 4L) r <- r + 1L
   max(1L, min(r, n_env - 1L, 3L))
@@ -77,6 +78,34 @@ met_formulae <- function(design_terms, neighbour_names, n_geno, n_env,
   # the str() variance formula must be vm(Geno, .kinship), not id(n).
   gterm <- function(f) if (kinship) sprintf("vm(%s, .kinship)", f) else f
   gdim  <- if (kinship) "vm(Geno, .kinship)" else sprintf("id(%d)", n_geno)
+
+  # The fa() structure is not a str() block: ASReml augments an fa() term with
+  # its own latent-factor levels, so the term cannot sit inside a str() whose
+  # size is fixed by the listed effects. Verified: fa(EffectEnv, 1) inside
+  # str() fails with "Size of direct product (468) does not conform with total
+  # size of included terms (416)", the gap being rank x nGeno.
+  if (identical(structure, "fa")) {
+    fa_term <- function(f) sprintf("fa(Env, %d):%s", rank, gterm(f))
+    genetic <- if (competition) {
+      paste(c(fa_term("Geno"), fa_term(neighbour_names[1]),
+              sprintf("and(%s)", vapply(neighbour_names[-1], fa_term, character(1)))),
+            collapse = " + ")
+    } else {
+      fa_term("Geno")
+    }
+    random <- c(design_terms, genetic)
+    if (spatial && nugget) random <- c(random, "idv(units)")
+    return(list(
+      random = stats::as.formula(paste("~", paste(random, collapse = " + ")),
+                                 env = globalenv()),
+      residual = stats::as.formula(
+        if (spatial) {
+          sprintf("~ dsum(~ %s | Env)",
+                  spatial_residual_text(row_process, col_process))
+        } else "~ dsum(~ idv(units) | Env)",
+        env = globalenv())
+    ))
+  }
 
   if (competition) {
     neighbour_sum <- paste(
@@ -172,6 +201,10 @@ met_specifications <- function(structure, rank, spatial, nugget, design_terms,
         "Separable us(2) x FA covariance (fewer parameters)")
     add("separable", 1L, spatial, FALSE, design_terms,
         "Separable us(2) x FA(1) covariance")
+  }
+  if (structure != "fa") {
+    add("fa", 1L, spatial, FALSE, design_terms,
+        "Separate FA(1) per effect, no direct-competition covariance")
   }
   add("diag", 1L, spatial, FALSE, design_terms,
       "Diagonal genetic covariance: no between-environment correlation")
@@ -271,14 +304,23 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
   fit <- run$fit
   spec <- run$spec
 
+  # For the fa structure the covariance parameters are named after the model
+  # terms themselves, so the extractor needs the exact term strings.
+  fa_terms <- if (identical(spec$structure, "fa")) {
+    gt <- function(f) if (use_kinship) sprintf("vm(%s, .kinship)", f) else f
+    c(direct = sprintf("fa(Env, %d):%s", spec$rank, gt("Geno")),
+      competition = sprintf("fa(Env, %d):%s", spec$rank, gt(neighbour_names[1])))
+  } else NULL
+
   G <- genetic_covariance_met(fit, spec$structure, effect_levels,
-                              env_levels, spec$rank)
+                              env_levels, spec$rank, fa_terms = fa_terms)
   parts <- partition_genetic_covariance(G$matrix, k, labels = env_levels)
 
   s <- summary(fit, coef = TRUE)
   values <- extract_met_effects(fit, s, env_levels, genotypes, k, parts, want_cinv,
                                kinship = use_kinship,
-                               in_trial = levels(droplevels(d$Geno[!is.na(d$Yield)])))
+                               in_trial = levels(droplevels(d$Geno[!is.na(d$Yield)])),
+                               fa_rank = if (identical(spec$structure, "fa")) spec$rank else NULL)
 
   comparison <- NULL
   if (isTRUE(opts$compare_baseline)) {
@@ -301,10 +343,13 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
     values = values,
     variance = met_variance_table(parts),
     varcomp = variance_component_table(fit),
-    fa_summary = if (spec$structure %in% c("facv", "separable")) {
-      fa_variance_explained(fit, spec, effect_levels, env_levels)
+    fa_summary = if (spec$structure %in% c("facv", "separable", "fa")) {
+      fa_variance_explained(fit, spec, effect_levels, env_levels, fa_terms)
     } else NULL,
     correlations_assumed = identical(spec$structure, "diag"),
+    # TRUE when the direct-competition covariance is a structural zero rather
+    # than an estimate, so the interface can say so instead of reporting 0.
+    dc_covariance_fixed = identical(spec$structure, "fa"),
     exact_se = attr(values, "exact_se") %||% FALSE,
     heritability = attr(values, "heritability"),
     comparison = comparison,
@@ -328,7 +373,8 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
 #' genotype x environment tables, where some cells are simply absent.
 #' @noRd
 extract_met_effects <- function(fit, s, env_levels, genotypes, k, parts,
-                                want_cinv, kinship = FALSE, in_trial = NULL) {
+                                want_cinv, kinship = FALSE, in_trial = NULL,
+                                fa_rank = NULL) {
   cr <- as.data.frame(s$coef.random)
   sol <- solution_column(cr)
   rn <- rownames(cr)
@@ -340,6 +386,14 @@ extract_met_effects <- function(fit, s, env_levels, genotypes, k, parts,
   term_text <- function(f) if (kinship) sprintf("vm(%s, .kinship)", f) else f
   labels_for <- function(term) {
     tt <- term_text(term)
+    # An fa() term is labelled "fa(Env, r)_<environment>:<term>_<genotype>",
+    # alongside "..._Comp<k>:..." rows holding the latent factor scores, which
+    # are not environment effects and must not be picked up here.
+    if (!is.null(fa_rank)) {
+      fa_lab <- sprintf("fa(Env, %d)_%s:%s_%s", fa_rank, grid$Environment,
+                        tt, grid$Genotype)
+      if (mean(fa_lab %in% rn) >= 0.5) return(fa_lab)
+    }
     forward <- sprintf("Env_%s:%s_%s", grid$Environment, tt, grid$Genotype)
     if (mean(forward %in% rn) >= 0.5) return(forward)
     reversed <- sprintf("%s_%s:Env_%s", tt, grid$Genotype, grid$Environment)
@@ -459,8 +513,39 @@ met_variance_table <- function(parts) {
 #' common factors behaves idiosyncratically and should not be pooled with the
 #' others when making selection decisions.
 #' @noRd
-fa_variance_explained <- function(fit, spec, effect_levels, env_levels) {
+fa_variance_explained <- function(fit, spec, effect_levels, env_levels,
+                                  fa_terms = NULL) {
   p <- parameter_table(fit)
+
+  if (identical(spec$structure, "fa")) {
+    # Two independent fa() terms, each with its own E environment loadings.
+    grab_fa <- function(term, level, suffix) {
+      hit <- which(endsWith(p$Parameter, paste0(term, "!", level, "!", suffix)))
+      if (length(hit)) p$Estimate[hit[1]] else NA_real_
+    }
+    out <- do.call(rbind, lapply(c("direct", "competition"), function(which_effect) {
+      term <- fa_terms[[which_effect]]
+      psi <- vapply(env_levels, grab_fa, numeric(1), term = term, suffix = "var")
+      load_mat <- vapply(seq_len(spec$rank), function(r) {
+        vapply(env_levels, grab_fa, numeric(1), term = term,
+               suffix = paste0("fa", r))
+      }, numeric(length(env_levels)))
+      load_mat <- matrix(load_mat, nrow = length(env_levels), ncol = spec$rank)
+      if (anyNA(psi) || anyNA(load_mat)) return(NULL)
+      common <- rowSums(load_mat^2)
+      d <- data.frame(
+        Effect = if (which_effect == "direct") "Direct" else "Competition",
+        Environment = env_levels,
+        Specific_variance = psi,
+        Total_variance = common + psi,
+        Variance_explained_pct = 100 * common / (common + psi),
+        stringsAsFactors = FALSE, row.names = NULL)
+      for (r in seq_len(spec$rank)) d[[paste0("Loading_", r)]] <- load_mat[, r]
+      d
+    }))
+    return(out)
+  }
+
   factor_name <- if (spec$structure == "separable") "EnvDummy" else "EffectEnv"
   levels_used <- if (spec$structure == "separable") env_levels else effect_levels
 
@@ -499,6 +584,9 @@ describe_met_model <- function(spec, k, n_env, relationship = NULL) {
     spec$structure,
     facv = sprintf("joint FA(%d) covariance over %d direct and %d competitive environment effects",
                    spec$rank, n_env, n_env),
+    fa = sprintf(paste("separate FA(%d) covariances for the direct and",
+                       "competitive effects, with no direct-competition",
+                       "covariance"), spec$rank),
     separable = sprintf("separable us(2) x FA(%d) genetic covariance", spec$rank),
     diag = "diagonal genetic covariance with no between-environment correlation"
   )

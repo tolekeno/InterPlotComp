@@ -1,3 +1,19 @@
+# InterPlotComp 3.4.0
+
+* New MET genetic structure, *Separate fa() per effect*, fitting an ordinary
+  `fa(Env, r)` term to the direct and competitive effects instead of one
+  joint `facv()` covariance. `fa()` cannot be used inside the joint `str()`
+  block because it augments the term with its own latent-factor levels, so
+  the joint structure has to be given up to use it.
+* The direct-competition covariance is a structural zero under that
+  structure, not an estimate. The results banner, the variance table and the
+  model description all say so, because the pure-stand variance then omits
+  the 2k Cov(D, C) term and is overstated wherever the two effects are
+  negatively correlated - by 1.3x to 8.7x on the worked example.
+* The joint factor-analytic structure remains the default: on the worked
+  example it fits 10.2 log-likelihood units better for the same number of
+  parameters.
+
 # InterPlotComp 3.3.0
 
 * The separable spatial residual is written `ar1(Column):ar1(Row)` rather
