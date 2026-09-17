@@ -189,7 +189,7 @@ single_ui <- function(id) {
                    icon_name = "info-circle", full_screen = FALSE),
         panel_card("Fitting log", shiny::verbatimTextOutput(ns("log")),
                    icon_name = "journal-text", full_screen = FALSE),
-        panel_card("ASReml summary", shiny::verbatimTextOutput(ns("summary")),
+        panel_card("Model summary", shiny::verbatimTextOutput(ns("summary")),
                    icon_name = "terminal"),
         panel_card("Random effect solutions", DT::DTOutput(ns("solutions")),
                    icon_name = "list-ol")
@@ -580,7 +580,7 @@ single_server <- function(id) {
     })
 
     output$log <- shiny::renderText({ format_attempt_log(res()$log) })
-    output$summary <- shiny::renderPrint({ print(res()$summary) })
+    output$summary <- shiny::renderPrint({ print_model_summary(res()) })
     output$solutions <- DT::renderDT({
       r <- res()
       cr <- as.data.frame(r$summary$coef.random)

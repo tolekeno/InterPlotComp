@@ -466,3 +466,74 @@ run_fit_ladder <- function(specs, fit_fun, allow_fallback = TRUE,
 
 #' Format the ladder log for on-screen display.
 format_attempt_log <- function(log) paste(log, collapse = "\n")
+
+#' Readable model summary for the on-screen panel.
+#'
+#' `print(summary(fit))` dumps ASReml's stored `$call`, which includes the
+#' entire body of `asreml()` - several hundred lines of internal source that
+#' bury the results and even echo licence-handling internals. Only the parts a
+#' user needs are printed here; the raw object remains available to the code.
+print_model_summary <- function(result) {
+  line <- function() cat(strrep("-", 72), "
+")
+
+  cat("FITTED MODEL
+"); line()
+  cat(strwrap(result$description, 72), sep = "
+")
+  cat("
+")
+  if (!is.null(result$structure_note)) {
+    cat(strwrap(result$structure_note, 72), sep = "
+")
+    cat("
+")
+  }
+
+  cat("
+MODEL FORMULAE
+"); line()
+  f <- result$fit$formulae
+  for (nm in c("fixed", "random", "residual")) {
+    if (!is.null(f[[nm]])) {
+      txt <- paste(deparse(stats::formula(f[[nm]])), collapse = " ")
+      txt <- gsub("[[:space:]]+", " ", txt)
+      cat(sprintf("%-10s", paste0(nm, ":")),
+          paste(strwrap(txt, 60, exdent = 0), collapse = "
+           "), "
+")
+    }
+  }
+
+  cat("
+FIT STATISTICS
+"); line()
+  st <- result$fit_stats
+  cat(sprintf("%-26s %s
+", "Converged", if (isTRUE(st$Converged)) "yes" else "NO"))
+  cat(sprintf("%-26s %.4f
+", "REML log-likelihood", st$LogLik))
+  cat(sprintf("%-26s %d
+", "Variance parameters", st$Parameters))
+  cat(sprintf("%-26s %.3f
+", "AIC", st$AIC))
+  cat(sprintf("%-26s %.3f
+", "BIC", st$BIC))
+  cat(sprintf("%-26s %s
+", "Residual degrees of freedom",
+              format(result$fit$nedf %||% NA)))
+
+  cat("
+VARIANCE COMPONENTS
+"); line()
+  print(result$summary$varcomp, digits = 5)
+
+  if (length(result$warnings)) {
+    cat("
+ASREML WARNINGS
+"); line()
+    cat(paste0("- ", unique(result$warnings)), sep = "
+")
+  }
+  invisible(NULL)
+}

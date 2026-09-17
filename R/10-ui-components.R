@@ -111,13 +111,41 @@ dt_table <- function(df, digits = 4, page_length = 15, scroll_y = NULL,
   length_labels <- c(as.character(lengths), "All")
   lengths <- c(lengths, -1)
 
+  # Column filters build a range slider for every numeric column. A column with
+  # a single distinct value gives a slider whose minimum equals its maximum,
+  # which throws in noUiSlider and aborts the draw, leaving a visible "Show N
+  # entries" control above an empty table. Summary tables routinely contain
+  # such columns, so filters are dropped whenever one is present.
+  degenerate <- vapply(df[numeric_cols], function(x) {
+    r <- suppressWarnings(range(x, na.rm = TRUE))
+    !all(is.finite(r)) || isTRUE(r[1] == r[2])
+  }, logical(1))
+  filter_mode <- if (nrow(df) < 2L || any(degenerate)) "none" else "top"
+
   tab <- DT::datatable(
-    display, rownames = FALSE, filter = "top", class = "compact stripe hover",
+    display, rownames = FALSE, filter = filter_mode, class = "compact stripe hover",
     options = list(
       pageLength = page_length, scrollX = TRUE, scrollY = scroll_y,
       lengthMenu = list(lengths, length_labels),
       dom = "lftip", autoWidth = FALSE,
-      columnDefs = list(list(className = "dt-right", targets = "_all"))
+      columnDefs = list(list(className = "dt-right", targets = "_all")),
+      # A horizontally scrolling table first drawn inside a hidden container
+      # measures every column as zero wide and collapses to an empty strip,
+      # even though the rows are present in the DOM. Re-measuring once the
+      # element actually has a width restores it.
+      initComplete = DT::JS(
+        "function(settings) {",
+        "  var api = this.api();",
+        "  var el = api.table().container();",
+        "  var fix = function() { api.columns.adjust(); };",
+        "  setTimeout(fix, 60);",
+        "  if (window.ResizeObserver) {",
+        "    var seen = false;",
+        "    new ResizeObserver(function(entries) {",
+        "      if (!seen && entries[0].contentRect.width > 0) { seen = true; fix(); }",
+        "    }).observe(el);",
+        "  }",
+        "}")
     )
   )
   if (length(decimal_cols)) {
