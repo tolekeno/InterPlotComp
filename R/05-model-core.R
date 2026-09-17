@@ -22,6 +22,52 @@ RECOVERABLE_PATTERNS <- paste(
   sep = "|"
 )
 
+# ---------------------------------------------------------------------------
+# Spatial residual processes
+# ---------------------------------------------------------------------------
+
+# Correlation processes offered for each field axis.
+#
+# WHY MORE THAN AR1
+# Inter-plot competition does not only move genetic signal between plots, it
+# leaves a signature in the residuals along the competition direction: a plot
+# that gives up yield to its neighbour is negatively correlated with it at
+# lag 1, while lag 2 is positive. AR1 imposes a geometric decay that keeps one
+# sign, so it cannot represent that pattern and the unmodelled part is pushed
+# into the competitive effects. A second-order process can: AR2 estimates two
+# free correlations, and SAR2 is its symmetric-autoregressive counterpart,
+# which is often better behaved on short field axes. Both are standard choices
+# for trials with interference (Besag & Kempton 1986; Gleeson & Cullis 1987).
+RESIDUAL_PROCESSES <- c(
+  "AR1 \u2014 first-order autoregressive (default)"    = "ar1",
+  "AR2 \u2014 second-order, allows negative lag 1"      = "ar2",
+  "SAR \u2014 symmetric autoregressive"                 = "sar",
+  "SAR2 \u2014 second-order symmetric autoregressive"   = "sar2",
+  "Independent \u2014 no correlation on this axis"      = "id"
+)
+
+#' Residual formula text for a separable two-dimensional field process.
+#'
+#' The scale parameter is carried by the column term, so exactly one variance
+#' is estimated however the two axes are specified.
+#'
+#' @param row_process,col_process names from `RESIDUAL_PROCESSES`
+#' @noRd
+spatial_residual_text <- function(row_process = "ar1", col_process = "ar1") {
+  sprintf("%sv(Column):%s(Row)", col_process, row_process)
+}
+
+#' Plain-English description of a separable residual specification.
+#' @noRd
+describe_residual <- function(row_process, col_process) {
+  label <- function(p) toupper(p)
+  if (identical(row_process, "id") && identical(col_process, "id")) {
+    return("independent residuals")
+  }
+  sprintf("%s x %s spatial residual (columns x rows)",
+          label(col_process), label(row_process))
+}
+
 #' Is ASReml-R installed in this R library?
 #' @noRd
 asreml_installed <- function() has_pkg("asreml")

@@ -56,12 +56,25 @@ single_ui <- function(id) {
 
         bslib::accordion_panel(
           "5. Spatial and error model", value = "spatial", icon = ic("layers"),
-          switch_input(ns("spatial"), "AR1 x AR1 spatial residual", TRUE,
-                       help = paste("Models a smooth field trend along rows and",
+          switch_input(ns("spatial"), "Separable spatial residual", TRUE,
+                       help = paste("Models field trend as one correlation",
+                                    "process along rows and another along",
                                     "columns. Missing grid positions are added",
                                     "automatically with a missing response.")),
           shiny::conditionalPanel(
             sprintf("input['%s'] == true", ns("spatial")),
+            select_input(ns("row_process"), "Process along field rows",
+                         RESIDUAL_PROCESSES, "ar1"),
+            select_input(ns("col_process"), "Process along field columns",
+                         RESIDUAL_PROCESSES, "ar1"),
+            note("Competition leaves a signature in the residuals along the ",
+                 "direction it acts in: a plot that gives up yield to its ",
+                 "neighbour is negatively correlated with it at lag 1, while ",
+                 "lag 2 is positive. AR1 imposes a decay of one sign and ",
+                 "cannot represent that, so the unmodelled part is pushed ",
+                 "into the competitive effects. Choose ",
+                 shiny::strong("AR2"), " or ", shiny::strong("SAR2"),
+                 " on the competition axis when that is a concern."),
             switch_input(ns("nugget"), "Independent nugget variance", TRUE,
                          help = "Separates plot measurement error from the spatial trend.")
           ),
@@ -243,14 +256,53 @@ single_server <- function(id) {
           shiny::column(6, select_input(ns("block_col"), "Block (optional)", optional,
                                         guess_column(nms, c("block", "iblk", "incomplete"), "")))
         ),
+        select_input(ns("site_col"), "Site / environment column (optional)", optional,
+                     guess_column(nms, c("^env", "environment", "^site", "location", "trial"), "")),
+        shiny::uiOutput(ns("site_pick")),
         note("Use physical field coordinates, not spreadsheet line numbers. ",
-             "Each row-column position must identify exactly one plot.")
+             "Each row-column position must identify exactly one plot. ",
+             "If the file holds several sites, name the site column above ",
+             "and pick one to analyse on its own.")
       )
+    })
+
+    # Sites available in the uploaded file, when a site column is named.
+    site_levels <- shiny::reactive({
+      if (is_blank(input$site_col)) return(NULL)
+      shiny::req(raw())
+      v <- raw()[[input$site_col]]
+      if (is.null(v)) return(NULL)
+      ordered_unique(trimws(as.character(v)))
+    })
+
+    output$site_pick <- shiny::renderUI({
+      levs <- site_levels()
+      if (is.null(levs)) return(NULL)
+      select_input(ns("site_value"),
+                   sprintf("Analyse which site? (%d in this file)", length(levs)),
+                   levs, levs[1])
+    })
+    shiny::outputOptions(output, "site_pick", suspendWhenHidden = FALSE)
+
+    # One site of a multi-site file, or the file as uploaded.
+    single_site <- shiny::reactive({
+      d <- raw()
+      levs <- site_levels()
+      if (is.null(levs)) return(d)
+      shiny::req(input$site_value)
+      keep <- trimws(as.character(d[[input$site_col]])) == input$site_value
+      out <- d[keep, , drop = FALSE]
+      if (!nrow(out)) {
+        stop("No plots remain after filtering to site '", input$site_value,
+             "'.", call. = FALSE)
+      }
+      rownames(out) <- NULL
+      out
     })
 
     prepared <- shiny::reactive({
       shiny::req(raw(), input$yield_col, input$geno_col, input$row_col, input$column_col)
-      prepare_trial_data(raw(), list(
+      prepare_trial_data(single_site(), list(
         yield = input$yield_col, geno = input$geno_col, row = input$row_col,
         column = input$column_col, rep = input$rep_col, block = input$block_col))
     })
@@ -293,6 +345,12 @@ single_server <- function(id) {
 
       shiny::tagList(
         metric_row(
+          # When a multi-site file has been filtered, say so plainly: every
+          # number below refers to that site alone.
+          if (!is.null(site_levels())) {
+            metric("Site", input$site_value %||% "\u2013",
+                   sprintf("1 of %d in the file", length(site_levels())))
+          },
           metric("Plots", nrow(d), sprintf("%d with a response", sum(!is.na(d$Yield)))),
           metric("Genotypes", nlevels(d$Geno),
                  sprintf("%d\u2013%d plots each", min(fs$Min_reps), max(fs$Max_reps))),
@@ -377,6 +435,8 @@ single_server <- function(id) {
           exact_se = isTRUE(input$exact_se),
           compare_baseline = isTRUE(input$compare_baseline),
           maxit = input$maxit, workspace = "2gb", cinv_limit = 6000L,
+          row_process = input$row_process %||% "ar1",
+          col_process = input$col_process %||% "ar1",
           relationship = relationship()),
         progress = function(i, n, reason) {
           prog$set(0.15 + 0.7 * i / max(n, 1),

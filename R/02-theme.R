@@ -13,7 +13,7 @@
 # cannot drift, with a literal fallback for a source checkout.
 APP_VERSION <- tryCatch(
   as.character(utils::packageVersion("InterPlotComp")),
-  error = function(e) "3.2.0"
+  error = function(e) "3.3.0"
 )
 
 # Palette: field greens for structure, warm earth for competition, a

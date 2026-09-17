@@ -34,9 +34,10 @@ guide_ui <- function(id) {
                            "quantity that carries forward to a monoculture ",
                            "block or a farmer's field."),
             shiny::tags$li(shiny::strong("Spatial term "), shiny::em("s"),
-                           " \u2014 a separable AR1 x AR1 field trend, fitted so ",
-                           "that smooth fertility gradients are not mistaken for ",
-                           "competition.")
+                           " \u2014 a separable field trend, fitted so that smooth ",
+                           "fertility gradients are not mistaken for competition. ",
+                           "The process on each axis is selectable; see ",
+                           shiny::em("Choosing the residual process"), ".")
           ),
           shiny::p("Why this matters: in unbordered single-row plots, part of a ",
                    "plot's yield is taken from, or given to, its neighbours. ",
@@ -80,7 +81,14 @@ guide_ui <- function(id) {
           shiny::p("Replicate and block columns are optional. When both are ",
                    "supplied, blocks are nested within replicate (and within ",
                    "environment) automatically, which avoids the empty cells ",
-                   "that otherwise destabilise the fit.")
+                   "that otherwise destabilise the fit."),
+          shiny::p(shiny::strong("Analysing one site of a multi-site file. "),
+                   "The single-trial workspace accepts a file holding several ",
+                   "sites: name the site column under ",
+                   shiny::em("Column mapping"),
+                   " and choose which site to analyse. Everything downstream ",
+                   "then applies to that site alone, so the same fieldbook can ",
+                   "be used for both workspaces without splitting the file.")
         ),
 
         bslib::accordion_panel(
@@ -138,6 +146,53 @@ guide_ui <- function(id) {
                            "model. Every fallback is reported; read the fitting ",
                            "log before quoting the estimates.")
           )
+        ),
+
+        bslib::accordion_panel(
+          "Choosing the residual process", value = "residual",
+          icon = ic("layers"),
+          shiny::p("The residual is separable: one correlation process ",
+                   "along field rows and another along field columns. Both ",
+                   "default to AR1, the usual choice for a smooth fertility ",
+                   "gradient."),
+          shiny::p(shiny::strong("Why AR1 is not always enough. "),
+                   "Inter-plot competition does not only move genetic signal ",
+                   "between plots; it leaves a signature in the residuals along ",
+                   "the direction it acts in. A plot that gives up yield to its ",
+                   "neighbour is negatively correlated with that neighbour at ",
+                   "lag 1, while lag 2 is positive. AR1 imposes a geometric ",
+                   "decay that keeps a single sign, so it cannot represent that ",
+                   "pattern, and whatever it misses is pushed into the ",
+                   "competitive effects \u2014 exactly the quantity being estimated."),
+          shiny::tags$dl(
+            shiny::tags$dt("AR1"),
+            shiny::tags$dd("One correlation, geometric decay. The default, and ",
+                           "right when interference is weak or absent."),
+            shiny::tags$dt("AR2"),
+            shiny::tags$dd("Two free correlations, so lag 1 may be negative ",
+                           "while lag 2 is positive. The natural choice on the ",
+                           "axis along which plots compete."),
+            shiny::tags$dt("SAR and SAR2"),
+            shiny::tags$dd("Symmetric autoregressive counterparts of AR1 and ",
+                           "AR2. Often better behaved on short field axes, where ",
+                           "an unconstrained AR2 can wander to the boundary."),
+            shiny::tags$dt("Independent"),
+            shiny::tags$dd("No correlation on that axis. Use when the field has ",
+                           "only a few columns, or a few rows, and a spatial ",
+                           "process cannot be estimated from them.")
+          ),
+          shiny::p(shiny::strong("How to choose. "),
+                   "Set the competition axis to AR2 or SAR2 and compare the ",
+                   "AIC in ", shiny::em("Variance & heritability"),
+                   " against the AR1 fit. A clear drop means the second-order ",
+                   "process is earning its extra parameter; a rise means AR1 was ",
+                   "adequate and the simpler model should stand. The sample ",
+                   "variogram under ", shiny::em("Diagnostics"),
+                   " is the other check: ridges along one axis point to trend ",
+                   "the current process has not absorbed."),
+          shiny::p("If a second-order process cannot be estimated, the ",
+                   "simplification ladder drops back to AR1 x AR1 before giving ",
+                   "up anything else, and says so in the fitting log.")
         ),
 
         bslib::accordion_panel(

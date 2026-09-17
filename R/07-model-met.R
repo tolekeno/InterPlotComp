@@ -71,7 +71,8 @@ max_fa_rank <- function(n_env, structure = "facv") {
 #' @noRd
 met_formulae <- function(design_terms, neighbour_names, n_geno, n_env,
                          structure = "facv", rank = 1L, spatial = TRUE,
-                         nugget = TRUE, competition = TRUE, kinship = FALSE) {
+                         nugget = TRUE, competition = TRUE, kinship = FALSE,
+                         row_process = "ar1", col_process = "ar1") {
   # See single_formulae(): with a relationship matrix the genotype dimension of
   # the str() variance formula must be vm(Geno, .kinship), not id(n).
   gterm <- function(f) if (kinship) sprintf("vm(%s, .kinship)", f) else f
@@ -111,7 +112,10 @@ met_formulae <- function(design_terms, neighbour_names, n_geno, n_env,
     random = stats::as.formula(paste("~", paste(random, collapse = " + ")),
                                env = globalenv()),
     residual = stats::as.formula(
-      if (spatial) "~ dsum(~ ar1v(Column):ar1(Row) | Env)" else "~ dsum(~ idv(units) | Env)",
+      if (spatial) {
+        sprintf("~ dsum(~ %s | Env)",
+                spatial_residual_text(row_process, col_process))
+      } else "~ dsum(~ idv(units) | Env)",
       env = globalenv())
   )
 }
@@ -124,20 +128,36 @@ met_formulae <- function(design_terms, neighbour_names, n_geno, n_env,
 #' the design variances, and only last the spatial residual.
 #' @noRd
 met_specifications <- function(structure, rank, spatial, nugget, design_terms,
-                               allow_fallback = TRUE) {
+                               allow_fallback = TRUE,
+                               row_process = "ar1", col_process = "ar1") {
   specs <- list()
   seen <- character(0)
-  add <- function(structure, rank, spatial, nugget, design_terms, reason) {
-    key <- paste(structure, rank, spatial, nugget, paste(design_terms, collapse = "+"))
+  # See single_specifications(): later steps must inherit a simplified
+  # residual process so the ladder stays a sequence of nested models.
+  current_row <- row_process
+  current_col <- col_process
+
+  add <- function(structure, rank, spatial, nugget, design_terms, reason,
+                  rp = current_row, cp = current_col) {
+    key <- paste(structure, rank, spatial, nugget,
+                 paste(design_terms, collapse = "+"), rp, cp)
     if (key %in% seen) return()
     seen <<- c(seen, key)
     specs[[length(specs) + 1L]] <<- list(
       structure = structure, rank = rank, spatial = spatial, nugget = nugget,
-      design_terms = design_terms, reason = reason)
+      design_terms = design_terms, reason = reason,
+      row_process = rp, col_process = cp)
   }
 
   add(structure, rank, spatial, nugget, design_terms, "Requested model")
   if (!allow_fallback) return(specs)
+
+  if (spatial && (row_process != "ar1" || col_process != "ar1")) {
+    add(structure, rank, spatial, nugget, design_terms,
+        "Simplified the residual process to AR1 x AR1", rp = "ar1", cp = "ar1")
+    current_row <- "ar1"
+    current_col <- "ar1"
+  }
 
   for (r in rev(seq_len(max(1L, rank - 1L)))) {
     add(structure, r, spatial, nugget, design_terms,
@@ -165,7 +185,7 @@ met_specifications <- function(structure, rank, spatial, nugget, design_terms,
   }
   if (spatial) {
     add("diag", 1L, FALSE, FALSE, design_terms,
-        "Independent residuals within environment instead of AR1 x AR1")
+        "Independent residuals within environment instead of a spatial process")
   }
   specs
 }
@@ -228,7 +248,9 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
   fit_one <- function(spec, competition = TRUE) {
     f <- met_formulae(spec$design_terms, neighbour_names, n_geno, n_env,
                       spec$structure, spec$rank, spec$spatial, spec$nugget,
-                      competition, kinship = use_kinship)
+                      competition, kinship = use_kinship,
+                      row_process = spec$row_process %||% "ar1",
+                      col_process = spec$col_process %||% "ar1")
     args <- list(
       fixed = stats::as.formula("Yield ~ Env", env = globalenv()),
       random = f$random, residual = f$residual,
@@ -242,7 +264,9 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
 
   specs <- met_specifications(opts$structure, as.integer(opts$rank),
                               isTRUE(opts$spatial), isTRUE(opts$nugget),
-                              design_terms, isTRUE(opts$auto_simplify))
+                              design_terms, isTRUE(opts$auto_simplify),
+                              row_process = opts$row_process %||% "ar1",
+                              col_process = opts$col_process %||% "ar1")
   run <- run_fit_ladder(specs, fit_one, isTRUE(opts$auto_simplify), progress)
   fit <- run$fit
   spec <- run$spec
@@ -483,8 +507,11 @@ describe_met_model <- function(spec, k, n_env, relationship = NULL) {
     if (length(spec$design_terms)) {
       paste0(", random ", paste(pretty_term(spec$design_terms), collapse = " + "))
     } else ", no replicate or block variances",
-    if (spec$spatial) ", environment-specific AR1 x AR1 residuals"
-    else ", independent residuals within environment",
+    if (spec$spatial) {
+      paste0(", environment-specific ",
+             describe_residual(spec$row_process %||% "ar1",
+                               spec$col_process %||% "ar1"))
+    } else ", independent residuals within environment",
     if (spec$nugget) " with a common nugget" else "",
     if (!is.null(relationship)) paste0(", ", relationship$label) else
       ", independent genotypes",

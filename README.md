@@ -139,7 +139,7 @@ y_i = μ + design_i + d_g(i) + Σ_{j ∈ N(i)} c_g(j) + s_i + e_i
 | `d` | **Direct effect** — how the genotype performs in its own plot |
 | `c` | **Competitive effect** — how much the genotype raises or lowers a neighbouring plot |
 | `d + k·c` | **Pure-stand value** — what the genotype expresses when every neighbour is itself (`k` = number of competing neighbours) |
-| `s` | AR1 × AR1 separable spatial field trend |
+| `s` | Separable spatial field trend; the process on each axis is selectable (see below) |
 
 In ASReml-R:
 
@@ -154,6 +154,31 @@ so both neighbours of a plot draw on one competitive effect vector.
 set, so effect *g* in the direct block and effect *g* in the competitive block
 are the same genotype. `us(2)` then estimates Var(d), Var(c) and Cov(d, c)
 directly.
+
+### Choosing the residual process
+
+The residual is separable: one correlation process along field rows and another
+along field columns, each chosen independently from **AR1** (default), **AR2**,
+**SAR**, **SAR2** or **independent**.
+
+AR1 is right for a smooth fertility gradient. It is *not* always right on the
+axis along which plots compete. Interference leaves a signature in the
+residuals there: a plot that gives up yield to its neighbour is negatively
+correlated with it at lag 1, while lag 2 is positive. AR1 imposes a geometric
+decay of a single sign and cannot represent that, so whatever it misses is
+absorbed into the competitive effects — the very quantity being estimated. AR2
+estimates two free correlations and can; SAR2 is its symmetric-autoregressive
+counterpart, often better behaved on a short field axis.
+
+```r
+residual = ~ ar1v(Column):ar2(Row)              # single trial
+residual = ~ dsum(~ ar1v(Column):ar2(Row) | Env) # MET
+```
+
+Fit both and compare AIC. A clear drop means the second-order process earns its
+extra parameter; a rise means AR1 was adequate. If a second-order process cannot
+be estimated, the simplification ladder falls back to AR1 × AR1 before giving up
+anything else, and reports it.
 
 Border plots legitimately have fewer neighbours. Their absent neighbour factors
 stay `NA` and are absorbed by `na.method(x = "include")` as a zero row in the
@@ -289,6 +314,9 @@ matching both example trials can be downloaded there.
 Rules:
 
 * Each Environment–Row–Column combination must identify exactly one plot.
+* A file holding several sites can be analysed one site at a time in the
+  single-trial workspace: name the site column under **Column mapping** and pick
+  the site. The same fieldbook then serves both workspaces without being split.
 * **Keep failed plots.** Leave the genotype and set the response to blank/`NA` —
   the plot still competes with its neighbours, so deleting the row loses real
   information.

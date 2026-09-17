@@ -52,7 +52,8 @@ SINGLE_STRUCTURES <- c(
 #' @noRd
 single_formulae <- function(design_terms, neighbour_names, n_geno,
                             structure = "us", spatial = TRUE, nugget = TRUE,
-                            competition = TRUE, kinship = FALSE) {
+                            competition = TRUE, kinship = FALSE,
+                            row_process = "ar1", col_process = "ar1") {
   # With a relationship matrix every genetic factor is wrapped in vm(), and the
   # genotype dimension of the str() variance formula becomes vm(Geno, .kinship)
   # instead of id(n). Leaving id(n) there is accepted by ASReml but silently
@@ -84,7 +85,8 @@ single_formulae <- function(design_terms, neighbour_names, n_geno,
     random = stats::as.formula(paste("~", paste(random, collapse = " + ")),
                                env = globalenv()),
     residual = if (spatial) {
-      stats::as.formula("~ ar1v(Column):ar1(Row)", env = globalenv())
+      stats::as.formula(paste("~", spatial_residual_text(row_process, col_process)),
+                        env = globalenv())
     } else {
       stats::as.formula("~ idv(units)", env = globalenv())
     }
@@ -99,21 +101,41 @@ single_formulae <- function(design_terms, neighbour_names, n_geno,
 #' given up last because dropping it biases everything else.
 #' @noRd
 single_specifications <- function(structure, spatial, nugget, design_terms,
-                                  allow_fallback = TRUE) {
+                                  allow_fallback = TRUE,
+                                  row_process = "ar1", col_process = "ar1") {
   specs <- list()
   seen <- character(0)
-  add <- function(structure, spatial, nugget, design_terms, reason) {
-    key <- paste(structure, spatial, nugget, paste(design_terms, collapse = "+"))
+  # The residual process in force for the remainder of the ladder. Once it
+  # has been simplified, every later step must inherit the simpler process,
+  # or the ladder stops being a sequence of nested models.
+  current_row <- row_process
+  current_col <- col_process
+
+  add <- function(structure, spatial, nugget, design_terms, reason,
+                  rp = current_row, cp = current_col) {
+    key <- paste(structure, spatial, nugget,
+                 paste(design_terms, collapse = "+"), rp, cp)
     if (key %in% seen) return()
     seen <<- c(seen, key)
     specs[[length(specs) + 1L]] <<- list(
       structure = structure, spatial = spatial, nugget = nugget,
-      design_terms = design_terms, reason = reason
+      design_terms = design_terms, reason = reason,
+      row_process = rp, col_process = cp
     )
   }
 
   add(structure, spatial, nugget, design_terms, "Requested model")
   if (!allow_fallback) return(specs)
+
+  # A second-order residual process is the first assumption to give up: it
+  # is the most recently added and the least costly to lose.
+  if (spatial && (row_process != "ar1" || col_process != "ar1")) {
+    add(structure, spatial, nugget, design_terms,
+        "Simplified the residual process to AR1 x AR1",
+        rp = "ar1", cp = "ar1")
+    current_row <- "ar1"
+    current_col <- "ar1"
+  }
 
   if (structure == "us") {
     add("corgh", spatial, nugget, design_terms,
@@ -137,7 +159,7 @@ single_specifications <- function(structure, spatial, nugget, design_terms,
   }
   if (spatial) {
     add("diag", FALSE, FALSE, design_terms,
-        "Replaced the AR1 x AR1 residual with an independent residual")
+        "Replaced the spatial residual with an independent residual")
   }
   specs
 }
@@ -189,7 +211,9 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
   fit_one <- function(spec, competition = TRUE) {
     f <- single_formulae(spec$design_terms, neighbour_names, n_geno,
                          spec$structure, spec$spatial, spec$nugget, competition,
-                         kinship = use_kinship)
+                         kinship = use_kinship,
+                         row_process = spec$row_process %||% "ar1",
+                         col_process = spec$col_process %||% "ar1")
     args <- list(
       fixed = stats::as.formula("Yield ~ 1", env = globalenv()),
       random = f$random, residual = f$residual,
@@ -204,7 +228,9 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
 
   specs <- single_specifications(opts$structure, isTRUE(opts$spatial),
                                  isTRUE(opts$nugget), design_terms,
-                                 isTRUE(opts$auto_simplify))
+                                 isTRUE(opts$auto_simplify),
+                                 row_process = opts$row_process %||% "ar1",
+                                 col_process = opts$col_process %||% "ar1")
   run <- run_fit_ladder(specs, fit_one, isTRUE(opts$auto_simplify), progress)
   fit <- run$fit
   spec <- run$spec
@@ -429,7 +455,11 @@ single_variance_table <- function(fit, parts, spec, k) {
       "Direct-competition covariance",
       "Direct-competition correlation",
       "Pure-stand genetic variance",
-      if (spec$spatial) "Spatial (AR1 x AR1) variance" else "Residual variance",
+      if (spec$spatial) {
+        sprintf("Spatial (%s x %s) variance",
+                toupper(spec$col_process %||% "ar1"),
+                toupper(spec$row_process %||% "ar1"))
+      } else "Residual variance",
       "Independent nugget variance",
       "Total plot-level error variance"
     ),
@@ -441,8 +471,11 @@ single_variance_table <- function(fit, parts, spec, k) {
       "Covariance between a genotype's own yield and its effect on neighbours",
       "Negative values indicate that high-yielding genotypes suppress neighbours",
       sprintf("Var(D + %d C): genetic variance expressed in a pure stand", k),
-      if (spec$spatial) "Diagonal variance of the separable AR1 x AR1 field trend"
-      else "Independent plot-to-plot error",
+      if (spec$spatial) {
+        paste("Diagonal variance of the separable field trend:",
+              describe_residual(spec$row_process %||% "ar1",
+                                spec$col_process %||% "ar1"))
+      } else "Independent plot-to-plot error",
       if (spec$nugget) "Plot-level variation independent of the spatial trend"
       else "Not fitted",
       if (spec$spatial) "Spatial variance + nugget" else "Residual variance"
@@ -465,7 +498,10 @@ describe_single_model <- function(spec, k, relationship = NULL) {
     if (length(spec$design_terms)) {
       paste0(", random ", paste(pretty_term(spec$design_terms), collapse = " + "))
     } else ", no replicate or block variances",
-    if (spec$spatial) ", AR1 x AR1 spatial residual" else ", independent residual",
+    if (spec$spatial) {
+      paste0(", ", describe_residual(spec$row_process %||% "ar1",
+                                     spec$col_process %||% "ar1"))
+    } else ", independent residual",
     if (spec$nugget) " with nugget" else "",
     if (!is.null(relationship)) paste0(", ", relationship$label) else
       ", independent genotypes",

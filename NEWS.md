@@ -1,3 +1,16 @@
+# InterPlotComp 3.3.0
+
+* The residual process on each field axis is now selectable: AR1 (default),
+  AR2, SAR, SAR2 or independent. A second-order process on the competition axis
+  accommodates the negative lag-1 residual correlation that interference
+  induces, which AR1 cannot represent and which otherwise leaks into the
+  competitive effects.
+* The simplification ladder drops a second-order process back to AR1 x AR1
+  before giving up any other term, and every later step inherits the simplified
+  process so the ladder stays a sequence of nested models.
+* The single-trial workspace can filter one site out of a multi-site file: name
+  the site column under Column mapping and choose the site.
+
 # InterPlotComp 3.2.0
 
 * Restructured as an installable R package. Install with
