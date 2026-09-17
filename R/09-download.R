@@ -41,6 +41,7 @@ FIGURE_PRESETS <- c(
 #' @param width,height size in `units`
 #' @param units "cm" or "in"
 #' @param dpi resolution for raster formats
+#' @noRd
 save_figure <- function(plot_fun, file, format = "png", width = 18, height = 12,
                         units = "cm", dpi = 600) {
   width_cm <- if (units == "in") width * 2.54 else width
@@ -93,6 +94,7 @@ save_figure <- function(plot_fun, file, format = "png", width = 18, height = 12,
 }
 
 #' Export several figures to one multi-page PDF.
+#' @noRd
 save_figure_pdf_report <- function(plot_funs, file, width = 18, height = 14,
                                    units = "cm") {
   to_inches <- function(x) if (units == "cm") x / 2.54 else x
@@ -117,6 +119,7 @@ save_figure_pdf_report <- function(plot_funs, file, width = 18, height = 14,
 #' @param id module id
 #' @param height CSS height of the plot area
 #' @param interactive offer a plotly version when the package is available
+#' @noRd
 figure_ui <- function(id, height = "460px", interactive = FALSE) {
   ns <- shiny::NS(id)
   use_plotly <- interactive && has_pkg("plotly")
@@ -166,6 +169,7 @@ figure_ui <- function(id, height = "460px", interactive = FALSE) {
 #' @param filename_base base name for the downloaded file
 #' @param height CSS height of the plot area
 #' @param interactive allow the plotly toggle
+#' @noRd
 figure_server <- function(id, plot_fun, filename_base = "figure",
                           height = "460px", interactive = FALSE) {
   shiny::moduleServer(id, function(input, output, session) {
@@ -215,6 +219,7 @@ figure_server <- function(id, plot_fun, filename_base = "figure",
 # ---------------------------------------------------------------------------
 
 #' Download control offering CSV and, where available, Excel.
+#' @noRd
 table_download_ui <- function(id, label = "Download table") {
   ns <- shiny::NS(id)
   shiny::div(
@@ -231,6 +236,7 @@ table_download_ui <- function(id, label = "Download table") {
 #' Server for `table_download_ui()`.
 #'
 #' @param data_fun function returning the data frame to export
+#' @noRd
 table_download_server <- function(id, data_fun, filename_base = "table") {
   shiny::moduleServer(id, function(input, output, session) {
     output$csv <- shiny::downloadHandler(
@@ -249,6 +255,7 @@ table_download_server <- function(id, data_fun, filename_base = "table") {
 }
 
 #' Multi-sheet workbook of every result table from one analysis.
+#' @noRd
 save_results_workbook <- function(tables, file) {
   tables <- tables[!vapply(tables, is.null, logical(1))]
   if (has_pkg("writexl")) {

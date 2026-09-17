@@ -5,9 +5,11 @@
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0L) y else x
 
 #' Treat "", NA and NULL alike as "not supplied".
+#' @noRd
 is_blank <- function(x) is.null(x) || length(x) == 0L || is.na(x[1]) || !nzchar(x[1])
 
 #' Syntactically valid, de-duplicated column names.
+#' @noRd
 clean_names <- function(x) make.names(trimws(x), unique = TRUE)
 
 #' Guess a column name from a set of regular expressions, in priority order.
@@ -15,6 +17,7 @@ clean_names <- function(x) make.names(trimws(x), unique = TRUE)
 #' @param candidates available column names
 #' @param patterns regular expressions tried in order; the first hit wins
 #' @param default value returned when nothing matches
+#' @noRd
 guess_column <- function(candidates, patterns, default = "") {
   for (p in patterns) {
     hit <- grep(p, candidates, ignore.case = TRUE, value = TRUE)
@@ -26,6 +29,7 @@ guess_column <- function(candidates, patterns, default = "") {
 #' Locate the "solution" column of an ASReml coefficient table.
 #'
 #' ASReml-R has used both `solution` and `Solution` across releases.
+#' @noRd
 solution_column <- function(x) {
   hit <- grep("^solution$", names(x), ignore.case = TRUE, value = TRUE)
   if (!length(hit)) hit <- grep("solution", names(x), ignore.case = TRUE, value = TRUE)
@@ -36,6 +40,7 @@ solution_column <- function(x) {
 }
 
 #' Locate the standard-error column of an ASReml coefficient table (may be absent).
+#' @noRd
 std_error_column <- function(x) {
   hit <- grep("^std[._ ]?error$", names(x), ignore.case = TRUE, value = TRUE)
   if (!length(hit)) hit <- grep("std", names(x), ignore.case = TRUE, value = TRUE)
@@ -43,11 +48,13 @@ std_error_column <- function(x) {
 }
 
 #' Escape a string for literal use inside a regular expression.
+#' @noRd
 escape_regex <- function(x) {
   gsub("([][{}().|^$*+?\\\\-])", "\\\\\\1", x)
 }
 
 #' Order unique values numerically when the labels are numbers, else alphabetically.
+#' @noRd
 ordered_unique <- function(x) {
   x_chr <- as.character(x)
   x_num <- suppressWarnings(as.numeric(x_chr))
@@ -64,6 +71,7 @@ ordered_unique <- function(x) {
 #'
 #' @param x observed coordinate values for one trial
 #' @param max_expansion refuse to expand beyond this many levels
+#' @noRd
 coordinate_levels <- function(x, max_expansion = 2000L) {
   x_chr <- as.character(x)
   x_num <- suppressWarnings(as.numeric(x_chr))
@@ -79,11 +87,13 @@ coordinate_levels <- function(x, max_expansion = 2000L) {
 }
 
 #' Format a number for compact on-screen display.
+#' @noRd
 fmt <- function(x, digits = 3) {
-  ifelse(is.na(x), "–", formatC(x, format = "f", digits = digits, big.mark = ","))
+  ifelse(is.na(x), "\u2013", formatC(x, format = "f", digits = digits, big.mark = ","))
 }
 
 #' Percentage of a total, guarding against a zero or missing denominator.
+#' @noRd
 safe_pct <- function(x, total) {
   if (!is.finite(total) || total <= 0) return(rep(NA_real_, length(x)))
   100 * x / total
@@ -94,6 +104,7 @@ safe_pct <- function(x, total) {
 #' `stats::cov2cor()` errors on a zero or negative diagonal, which occurs
 #' routinely at a variance-component boundary. This version returns NA for the
 #' affected cells instead of aborting the whole results panel.
+#' @noRd
 safe_cov2cor <- function(x) {
   x <- as.matrix(x)
   d <- diag(x)
@@ -112,6 +123,7 @@ safe_cov2cor <- function(x) {
 #' G_D + k^2 G_C + k(G_DC + G_DC')) are algebraically valid but can acquire
 #' tiny negative eigenvalues from rounding. Eigenvalues are floored rather than
 #' the matrix rebuilt, so the result stays as close to the estimate as possible.
+#' @noRd
 nearest_pd <- function(x, tol = 1e-10) {
   x <- as.matrix(x)
   x <- (x + t(x)) / 2
@@ -125,6 +137,7 @@ nearest_pd <- function(x, tol = 1e-10) {
 }
 
 #' Convert a square matrix to a long data frame, for tables and ggplot heatmaps.
+#' @noRd
 matrix_to_long <- function(x, value_name = "Value", label = NULL) {
   x <- as.matrix(x)
   out <- expand.grid(
@@ -137,6 +150,7 @@ matrix_to_long <- function(x, value_name = "Value", label = NULL) {
 }
 
 #' Convert a square matrix to a wide data frame with an explicit label column.
+#' @noRd
 matrix_to_wide <- function(x, label = "Environment") {
   out <- data.frame(rownames(x), as.data.frame(x, check.names = FALSE),
                     check.names = FALSE, row.names = NULL)
@@ -145,17 +159,20 @@ matrix_to_wide <- function(x, label = "Environment") {
 }
 
 #' Timestamped download file name.
+#' @noRd
 stamped <- function(base, ext) {
   sprintf("%s_%s.%s", base, format(Sys.time(), "%Y%m%d_%H%M"), ext)
 }
 
 #' Standard-normal-scale inverse for QQ plots without pulling in extra packages.
+#' @noRd
 theoretical_quantiles <- function(n) stats::qnorm(stats::ppoints(n))
 
 #' Translate internal model-term names into wording a breeder will recognise.
 #'
 #' Internal names (RepF, BlockF, N1, EffectEnv) are convenient in formulae but
 #' must never reach a figure caption, a results table or an error message.
+#' @noRd
 pretty_term <- function(x) {
   map <- c(
     RepF = "replicate", BlockF = "block", EnvRep = "replicate",

@@ -34,10 +34,10 @@
 # ---------------------------------------------------------------------------
 
 RELATIONSHIP_SOURCES <- c(
-  "None — independent genotypes"               = "none",
+  "None \u2014 independent genotypes"               = "none",
   "Pedigree (identifier, male parent, female parent)" = "pedigree",
   "Relationship / kinship matrix (square)"          = "kinship",
-  "Marker matrix (genotypes × markers)"        = "markers"
+  "Marker matrix (genotypes \u00d7 markers)"        = "markers"
 )
 
 #' Convert a relationship matrix to ASReml's sparse inverse representation.
@@ -53,6 +53,7 @@ RELATIONSHIP_SOURCES <- c(
 #'
 #' @param K a symmetric relationship matrix with dimnames
 #' @param tol values below this in the inverse are treated as structural zeros
+#' @noRd
 kinship_to_ginv <- function(K, tol = 1e-10) {
   K <- as.matrix(K)
   ids <- rownames(K)
@@ -85,6 +86,7 @@ kinship_to_ginv <- function(K, tol = 1e-10) {
 #'
 #' Only built for modest numbers of individuals; a heatmap of thousands of
 #' genotypes is neither readable nor cheap.
+#' @noRd
 ginv_to_matrix <- function(g, max_n = 400L) {
   ids <- attr(g, "rowNames")
   n <- length(ids)
@@ -106,6 +108,7 @@ ginv_to_matrix <- function(g, max_n = 400L) {
 #' `ainverse()` requires every parent to appear as an identifier before it is
 #' used, so unknown parents are added as founders and the pedigree is sorted so
 #' that parents precede their progeny.
+#' @noRd
 build_pedigree_ginv <- function(raw, map) {
   need <- c("id", "sire", "dam")
   if (any(vapply(need, function(k) is_blank(map[[k]]), logical(1)))) {
@@ -156,6 +159,7 @@ build_pedigree_ginv <- function(raw, map) {
 #'
 #' Repeated generation peeling rather than a recursive sort: it is simple,
 #' terminates on a cycle, and reports the offending individuals.
+#' @noRd
 sort_pedigree <- function(ped) {
   placed <- character(0)
   out <- vector("list", 0)
@@ -187,6 +191,7 @@ sort_pedigree <- function(ped) {
 #'   singular whenever there are fewer markers than genotypes, or duplicated
 #'   genotypes, so a small ridge is required before it can be inverted.
 #' @param min_maf markers below this minor allele frequency are dropped
+#' @noRd
 markers_to_grm <- function(M, blend = 0.01, min_maf = 0.01) {
   M <- as.matrix(M)
   if (is.null(rownames(M))) {
@@ -231,6 +236,7 @@ markers_to_grm <- function(M, blend = 0.01, min_maf = 0.01) {
 }
 
 #' Read a square relationship matrix whose first column holds the identifiers.
+#' @noRd
 read_square_matrix <- function(raw) {
   ids <- trimws(as.character(raw[[1]]))
   body <- raw[, -1, drop = FALSE]
@@ -264,6 +270,7 @@ read_square_matrix <- function(raw) {
 #' @param map column mapping for a pedigree
 #' @param blend identity blending weight for genomic matrices
 #' @return list(ginv, ids, type, label, diagnostics, matrix)
+#' @export
 build_relationship <- function(type, raw = NULL, map = NULL, blend = 0.01) {
   if (identical(type, "none") || is.null(raw)) return(NULL)
 
@@ -304,6 +311,7 @@ build_relationship <- function(type, raw = NULL, map = NULL, blend = 0.01) {
 }
 
 #' First column becomes row names; the rest becomes a numeric matrix.
+#' @noRd
 as.matrix_with_rownames <- function(raw) {
   ids <- trimws(as.character(raw[[1]]))
   M <- as.matrix(as.data.frame(lapply(raw[, -1, drop = FALSE],
@@ -313,6 +321,7 @@ as.matrix_with_rownames <- function(raw) {
 }
 
 #' Summary statistics about a relationship matrix, for the interface.
+#' @noRd
 relationship_diagnostics <- function(ginv, type) {
   ids <- attr(ginv, "rowNames")
   inb <- attr(ginv, "inbreeding")
@@ -339,6 +348,7 @@ relationship_diagnostics <- function(ginv, type) {
 #' @param d trial data carrying Geno and the neighbour factors
 #' @param neighbour_names N1..Nk
 #' @param rel relationship object from `build_relationship()`
+#' @noRd
 align_relationship <- function(d, neighbour_names, rel) {
   if (is.null(rel)) return(list(data = d, coverage = NULL))
 
@@ -367,6 +377,7 @@ align_relationship <- function(d, neighbour_names, rel) {
 }
 
 #' Heatmap of the relationship matrix.
+#' @noRd
 plot_relationship <- function(rel, base_size = 12, caption = NULL, max_n = 80L) {
   K <- rel$matrix
   if (is.null(K)) {
@@ -409,6 +420,7 @@ plot_relationship <- function(rel, base_size = 12, caption = NULL, max_n = 80L) 
 #'
 #' Returns NULL when no relationship was used, so `save_results_workbook()`
 #' simply omits the sheet.
+#' @noRd
 relationship_export <- function(result) {
   rel <- result$relationship
   if (is.null(rel)) return(NULL)

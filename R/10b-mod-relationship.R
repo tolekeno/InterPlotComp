@@ -74,6 +74,7 @@ relationship_ui <- function(id) {
 }
 
 #' @return a reactive yielding the relationship object, or NULL
+#' @noRd
 relationship_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -172,6 +173,7 @@ relationship_server <- function(id) {
 #'
 #' The fit must not silently fall back to independent genotypes when the user
 #' has asked for a pedigree and the file is broken.
+#' @noRd
 relationship_blocking_message <- function(source, rel) {
   if (is_blank(source) || identical(source, "none")) return(NULL)
   if (!is.null(rel)) return(NULL)

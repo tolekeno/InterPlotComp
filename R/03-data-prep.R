@@ -29,6 +29,7 @@
 #' @param path file path from `fileInput`
 #' @param header logical, first line holds column names
 #' @param sep field separator
+#' @noRd
 read_trial_file <- function(path, header = TRUE, sep = ",") {
   d <- utils::read.csv(
     path, header = header, sep = sep, check.names = FALSE,
@@ -49,6 +50,7 @@ read_trial_file <- function(path, header = TRUE, sep = ",") {
 #' @param multi_env TRUE for the MET workspace
 #' @return data frame with the internal analysis columns, carrying a
 #'   `field_summary` attribute
+#' @export
 prepare_trial_data <- function(raw, map, multi_env = FALSE) {
   required <- c("yield", "geno", "row", "column", if (multi_env) "env")
   missing_map <- required[vapply(required, function(k) is_blank(map[[k]]), logical(1))]
@@ -175,6 +177,7 @@ prepare_trial_data <- function(raw, map, multi_env = FALSE) {
 #' environments. Nesting them into a single observed-level factor avoids the
 #' empty cells that `Env:Rep:Block` would otherwise generate, which are a
 #' common cause of singular Average Information matrices.
+#' @noRd
 build_design_factors <- function(d, multi_env = FALSE) {
   has_rep   <- "Rep" %in% names(d)
   has_block <- "Block" %in% names(d)
@@ -201,9 +204,11 @@ build_design_factors <- function(d, multi_env = FALSE) {
 }
 
 #' Which design terms are available in the prepared data?
+#' @noRd
 available_design_terms <- function(d) intersect(c("RepF", "BlockF"), names(d))
 
 #' Per-environment field-layout summary, used for on-screen diagnostics.
+#' @noRd
 field_summary <- function(d) {
   out <- lapply(levels(d$Env), function(e) {
     z <- d[d$Env == e, , drop = FALSE]
@@ -214,7 +219,7 @@ field_summary <- function(d) {
       Environment = e,
       Rows = n_rows,
       Columns = n_cols,
-      Grid = paste0(n_rows, " × ", n_cols),
+      Grid = paste0(n_rows, " \u00d7 ", n_cols),
       Plots = nrow(z),
       Observed = sum(!is.na(z$Yield)),
       Missing_response = sum(is.na(z$Yield)),
@@ -229,11 +234,26 @@ field_summary <- function(d) {
   do.call(rbind, out)
 }
 
-#' Pad every environment to its full rectangular grid with Yield = NA.
+#' Pad every environment to its full rectangular grid
 #'
-#' Indexing with NA reproduces each column's class and factor levels, so the
-#' padded records are structurally identical to real plots but carry no
-#' response, no genotype and no design membership.
+#' Inserts the field positions that are absent from the data, with a missing
+#' response, so that each environment forms the complete rectangle an
+#' AR1 x AR1 residual requires. Indexing with `NA` reproduces each column's
+#' class and factor levels, so the padded records are structurally identical to
+#' real plots but carry no response, no genotype and no design membership.
+#'
+#' @param d prepared trial data from [prepare_trial_data()].
+#' @return The same data frame with padded rows added, a logical `Padded`
+#'   column marking them, and an `n_padded` attribute giving how many were
+#'   inserted.
+#' @export
+#' @examples
+#' d <- prepare_trial_data(
+#'   sample_single_trial(),
+#'   list(yield = "Yield_t_ha", geno = "Genotype", row = "Row", column = "Column")
+#' )
+#' nrow(d)
+#' nrow(complete_field_grid(d))
 complete_field_grid <- function(d) {
   env_levels <- levels(d$Env)
   sections <- lapply(env_levels, function(e) {
@@ -269,8 +289,8 @@ NEIGHBOUR_OFFSETS <- list(
 )
 
 NEIGHBOUR_LABELS <- c(
-  rows    = "Adjacent field rows (Row ± 1, same column)",
-  columns = "Adjacent columns (Column ± 1, same row)",
+  rows    = "Adjacent field rows (Row \u00b1 1, same column)",
+  columns = "Adjacent columns (Column \u00b1 1, same row)",
   four    = "Four orthogonal neighbours"
 )
 
@@ -284,6 +304,7 @@ NEIGHBOUR_LABELS <- c(
 #' @param d prepared trial data
 #' @param axis one of "rows", "columns", "four"
 #' @return list(data, names, k, label)
+#' @export
 add_neighbours <- function(d, axis = "rows") {
   offsets <- NEIGHBOUR_OFFSETS[[axis]]
   if (is.null(offsets)) stop("Unknown competition direction: ", axis, call. = FALSE)
@@ -310,6 +331,7 @@ add_neighbours <- function(d, axis = "rows") {
 #' incomplete neighbour set), and neighbour pairings that repeat across
 #' replicates (so a genotype is nearly always beside the same neighbour, making
 #' direct and competitive effects hard to separate).
+#' @noRd
 competition_diagnostics <- function(d, neighbour_names) {
   observed <- d[!is.na(d$Yield) & !is.na(d$Geno), , drop = FALSE]
   k <- length(neighbour_names)
@@ -339,6 +361,7 @@ competition_diagnostics <- function(d, neighbour_names) {
 }
 
 #' Human-readable warnings derived from `competition_diagnostics()`.
+#' @noRd
 competition_warnings <- function(x) {
   msg <- character(0)
   if (x$full_neighbour_pct < 50) {

@@ -35,7 +35,7 @@
 # ---------------------------------------------------------------------------
 
 SINGLE_STRUCTURES <- c(
-  "Unstructured us(2) — recommended"            = "us",
+  "Unstructured us(2) \u2014 recommended"            = "us",
   "Correlation + heterogeneous variance corgh(2)"    = "corgh",
   "Independent direct and competitive effects"       = "diag"
 )
@@ -49,6 +49,7 @@ SINGLE_STRUCTURES <- c(
 #' @param spatial fit AR1 x AR1?
 #' @param nugget add an independent plot-level variance alongside AR1?
 #' @param competition include the competitive effects at all?
+#' @noRd
 single_formulae <- function(design_terms, neighbour_names, n_geno,
                             structure = "us", spatial = TRUE, nugget = TRUE,
                             competition = TRUE, kinship = FALSE) {
@@ -96,6 +97,7 @@ single_formulae <- function(design_terms, neighbour_names, n_geno,
 #' direct-competition covariance is the hardest parameter to estimate, the
 #' nugget is often weakly identified alongside AR1, and the spatial residual is
 #' given up last because dropping it biases everything else.
+#' @noRd
 single_specifications <- function(structure, spatial, nugget, design_terms,
                                   allow_fallback = TRUE) {
   specs <- list()
@@ -147,6 +149,7 @@ single_specifications <- function(structure, spatial, nugget, design_terms,
 #' @param opts list of user options
 #' @param progress optional function(i, n, reason) for the busy indicator
 #' @return a rich result list consumed by the UI
+#' @export
 fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
   load_asreml()
 
@@ -275,6 +278,7 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
 }
 
 #' Pull direct and competitive solutions and assemble the genotype table.
+#' @noRd
 extract_single_effects <- function(fit, s, genotypes, k, var_direct, var_pure,
                                    kinship = FALSE, in_trial = NULL) {
   cr <- as.data.frame(s$coef.random)
@@ -362,6 +366,7 @@ extract_single_effects <- function(fit, s, genotypes, k, var_direct, var_pure,
 #'
 #' Thresholded at one standard deviation so the labels stay meaningful rather
 #' than splitting the panel at zero.
+#' @noRd
 classify_competitor <- function(x) {
   if (all(is.na(x))) return(rep(NA_character_, length(x)))
   sd_x <- stats::sd(x, na.rm = TRUE)
@@ -373,6 +378,7 @@ classify_competitor <- function(x) {
 }
 
 #' Fitted intercept, needed to put pure-stand effects back on the yield scale.
+#' @noRd
 extract_intercept <- function(fit, s) {
   cf <- s$coef.fixed
   if (!is.null(cf)) {
@@ -392,6 +398,7 @@ extract_intercept <- function(fit, s) {
 }
 
 #' Interpreted variance summary for the single trial.
+#' @noRd
 single_variance_table <- function(fit, parts, spec, k) {
   p <- parameter_table(fit)
   is_var <- p$Type %in% c("V", "P", "G")
@@ -445,6 +452,7 @@ single_variance_table <- function(fit, parts, spec, k) {
 }
 
 #' One-sentence description of what was actually fitted.
+#' @noRd
 describe_single_model <- function(spec, k, relationship = NULL) {
   genetic <- switch(
     spec$structure,
@@ -466,6 +474,7 @@ describe_single_model <- function(spec, k, relationship = NULL) {
 }
 
 #' Residuals and fitted values joined to the field layout, for diagnostics.
+#' @noRd
 residual_frame <- function(fit, d) {
   r <- as.numeric(stats::residuals(fit))
   f <- as.numeric(stats::fitted(fit))
@@ -487,6 +496,7 @@ residual_frame <- function(fit, d) {
 #' separable spatial model has captured the field trend (Gilmour, Cullis &
 #' Verbyla 1997): a well-fitted surface gives a variogram that rises to a
 #' plateau without ridges or trends along either axis.
+#' @noRd
 residual_variogram <- function(fit) {
   tryCatch({
     v <- as.data.frame(asreml::varioGram(fit))

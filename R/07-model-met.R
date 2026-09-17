@@ -32,8 +32,8 @@
 
 MET_STRUCTURES <- c(
   "Joint factor-analytic over direct + competitive effects" = "facv",
-  "Separable us(2) × factor-analytic environments"      = "separable",
-  "Diagonal — no genetic correlation between environments" = "diag"
+  "Separable us(2) \u00d7 factor-analytic environments"      = "separable",
+  "Diagonal \u2014 no genetic correlation between environments" = "diag"
 )
 
 #' Add the synthetic factors that give the `str()` variance model its dimensions.
@@ -44,6 +44,7 @@ MET_STRUCTURES <- c(
 #' `Env:N1 + and(Env:N2)`. Levels are assigned by recycling across records,
 #' which is arbitrary by design and never enters the fitted model. Labels are
 #' chosen so that every ASReml variance parameter can be matched by name.
+#' @noRd
 add_met_dummy_factors <- function(d) {
   env_levels <- levels(d$Env)
   e <- length(env_levels)
@@ -58,6 +59,7 @@ add_met_dummy_factors <- function(d) {
 #'
 #' An FA(r) covariance over n dimensions is identified only while the number of
 #' free parameters does not exceed n(n + 1)/2.
+#' @noRd
 max_fa_rank <- function(n_env, structure = "facv") {
   n <- if (structure == "separable") n_env else 2L * n_env
   r <- 1L
@@ -66,6 +68,7 @@ max_fa_rank <- function(n_env, structure = "facv") {
 }
 
 #' Build the MET random and residual formulae.
+#' @noRd
 met_formulae <- function(design_terms, neighbour_names, n_geno, n_env,
                          structure = "facv", rank = 1L, spatial = TRUE,
                          nugget = TRUE, competition = TRUE, kinship = FALSE) {
@@ -119,6 +122,7 @@ met_formulae <- function(design_terms, neighbour_names, n_geno, n_env,
 #' factor-analytic rank, then the nugget, then the joint covariance in favour
 #' of the separable form, then between-environment correlation altogether, then
 #' the design variances, and only last the spatial residual.
+#' @noRd
 met_specifications <- function(structure, rank, spatial, nugget, design_terms,
                                allow_fallback = TRUE) {
   specs <- list()
@@ -166,7 +170,27 @@ met_specifications <- function(structure, rank, spatial, nugget, design_terms,
   specs
 }
 
-#' Fit the MET competition model.
+#' Fit the multi-environment competition model
+#'
+#' Fits environment-specific direct and competitive genotype effects sharing one
+#' joint covariance across environments, with an AR1 x AR1 residual per
+#' environment. Requires 'ASReml-R' and a valid licence.
+#'
+#' @param d Prepared MET data from [prepare_trial_data()] with `multi_env =
+#'   TRUE`, grid-completed by [complete_field_grid()] for a spatial model, and
+#'   carrying the neighbour factors added by [add_neighbours()].
+#' @param neighbour_names Names of the neighbour factors, from
+#'   [add_neighbours()].
+#' @param opts Named list of fitting options: `structure` (one of
+#'   `MET_STRUCTURES`), `rank`, `spatial`, `nugget`, `auto_simplify`,
+#'   `exact_se`, `compare_baseline`, `maxit`, `workspace`, `cinv_limit` and an
+#'   optional `relationship` from [build_relationship()].
+#' @param progress Optional `function(i, n, reason)` called as the
+#'   simplification ladder advances.
+#' @return A list holding the fitted model, the genetic values by environment,
+#'   the direct, competitive and pure-stand covariance and correlation
+#'   matrices, variance summaries, the fitting log and residuals.
+#' @export
 fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
   load_asreml()
 
@@ -278,6 +302,7 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
 #' with a reversed-order fallback, which is far more reliable than the pattern
 #' guessing the previous version needed and copes correctly with sparse
 #' genotype x environment tables, where some cells are simply absent.
+#' @noRd
 extract_met_effects <- function(fit, s, env_levels, genotypes, k, parts,
                                 want_cinv, kinship = FALSE, in_trial = NULL) {
   cr <- as.data.frame(s$coef.random)
@@ -364,6 +389,7 @@ extract_met_effects <- function(fit, s, env_levels, genotypes, k, parts,
 }
 
 #' Fitted environment means, used to put pure-stand effects on the yield scale.
+#' @noRd
 met_environment_means <- function(fit, env_levels) {
   p <- tryCatch(stats::predict(fit, classify = "Env", trace = FALSE)$pvals,
                 error = function(e) NULL)
@@ -388,6 +414,7 @@ met_environment_means <- function(fit, env_levels) {
 }
 
 #' Per-environment genetic variances derived from the joint matrix.
+#' @noRd
 met_variance_table <- function(parts) {
   data.frame(
     Environment = rownames(parts$direct),
@@ -407,6 +434,7 @@ met_variance_table <- function(parts) {
 #' Thompson 2001). An environment whose variance is poorly explained by the
 #' common factors behaves idiosyncratically and should not be pooled with the
 #' others when making selection decisions.
+#' @noRd
 fa_variance_explained <- function(fit, spec, effect_levels, env_levels) {
   p <- parameter_table(fit)
   factor_name <- if (spec$structure == "separable") "EnvDummy" else "EffectEnv"
@@ -441,6 +469,7 @@ fa_variance_explained <- function(fit, spec, effect_levels, env_levels) {
 }
 
 #' One-sentence description of the fitted MET model.
+#' @noRd
 describe_met_model <- function(spec, k, n_env, relationship = NULL) {
   genetic <- switch(
     spec$structure,

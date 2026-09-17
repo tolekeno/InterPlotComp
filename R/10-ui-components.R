@@ -7,11 +7,13 @@
 # ---------------------------------------------------------------------------
 
 #' Icon, or an empty span when bsicons is unavailable.
+#' @noRd
 ic <- function(name, ...) {
   if (has_pkg("bsicons")) bsicons::bs_icon(name, ...) else shiny::span()
 }
 
 #' Radio group.
+#' @noRd
 radio_input <- function(inputId, label, choices, selected = NULL, help = NULL) {
   ctl <- if (has_pkg("shinyWidgets")) {
     shinyWidgets::prettyRadioButtons(
@@ -25,6 +27,7 @@ radio_input <- function(inputId, label, choices, selected = NULL, help = NULL) {
 }
 
 #' On/off switch.
+#' @noRd
 switch_input <- function(inputId, label, value = TRUE, help = NULL) {
   ctl <- if (has_pkg("shinyWidgets")) {
     shinyWidgets::materialSwitch(inputId, label, value = value,
@@ -36,6 +39,7 @@ switch_input <- function(inputId, label, value = TRUE, help = NULL) {
 }
 
 #' Select control with search when the list is long.
+#' @noRd
 select_input <- function(inputId, label, choices, selected = NULL, ...) {
   if (has_pkg("shinyWidgets") && length(choices) > 8) {
     shinyWidgets::pickerInput(inputId, label, choices = choices, selected = selected,
@@ -50,6 +54,7 @@ select_input <- function(inputId, label, choices, selected = NULL, ...) {
 #' Coloured status banner.
 #'
 #' @param level "ok", "warn" or "bad"
+#' @noRd
 status_banner <- function(level, title, ..., icon_name = NULL) {
   icon_name <- icon_name %||% switch(level, ok = "check-circle-fill",
                                      warn = "exclamation-triangle-fill",
@@ -62,6 +67,7 @@ status_banner <- function(level, title, ..., icon_name = NULL) {
 }
 
 #' One metric in the summary strip.
+#' @noRd
 metric <- function(label, value, sub = NULL) {
   shiny::div(
     class = "metric",
@@ -72,14 +78,17 @@ metric <- function(label, value, sub = NULL) {
 }
 
 #' Horizontal strip of metrics.
+#' @noRd
 metric_row <- function(...) {
   shiny::div(class = "metric-row", ...)
 }
 
 #' Small explanatory paragraph.
+#' @noRd
 note <- function(...) shiny::div(class = "section-note", ...)
 
 #' Numbered step marker for the workflow headings.
+#' @noRd
 step <- function(n, text) {
   shiny::tagList(shiny::span(class = "step-badge", n), text)
 }
@@ -88,6 +97,7 @@ step <- function(n, text) {
 #'
 #' Numeric columns are rounded for display only; the exported CSV and Excel
 #' files always carry full precision.
+#' @noRd
 dt_table <- function(df, digits = 4, page_length = 15, scroll_y = NULL,
                      highlight = NULL) {
   if (is.null(df) || !nrow(df)) {
@@ -146,6 +156,7 @@ dt_table <- function(df, digits = 4, page_length = 15, scroll_y = NULL,
 }
 
 #' Card wrapper with a consistent header.
+#' @noRd
 panel_card <- function(title, ..., icon_name = NULL, full_screen = TRUE,
                        fill = FALSE) {
   # `fill = FALSE` is deliberate. The application runs inside a fillable
@@ -166,6 +177,7 @@ panel_card <- function(title, ..., icon_name = NULL, full_screen = TRUE,
 #' The wording is deliberately explicit: users must understand that they supply
 #' the licence, that it stays on their machine, and that the application has no
 #' part in obtaining or managing it.
+#' @noRd
 licence_notice <- function() {
   s <- asreml_status()
   shiny::tagList(
@@ -182,6 +194,7 @@ licence_notice <- function() {
 }
 
 #' Convert a data frame of file-reading options into the shared upload panel.
+#' @noRd
 upload_panel <- function(ns, multi_env = FALSE) {
   shiny::tagList(
     shiny::fileInput(ns("file"), "Trial data file (CSV or text)",

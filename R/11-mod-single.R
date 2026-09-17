@@ -295,7 +295,7 @@ single_server <- function(id) {
         metric_row(
           metric("Plots", nrow(d), sprintf("%d with a response", sum(!is.na(d$Yield)))),
           metric("Genotypes", nlevels(d$Geno),
-                 sprintf("%d–%d plots each", min(fs$Min_reps), max(fs$Max_reps))),
+                 sprintf("%d\u2013%d plots each", min(fs$Min_reps), max(fs$Max_reps))),
           metric("Field", fs$Grid[1], "rows x columns"),
           metric("Full neighbour sets", sprintf("%.0f%%", diag$full_neighbour_pct),
                  sprintf("%d border plots", diag$border_plots)),
@@ -455,7 +455,7 @@ single_server <- function(id) {
                else "narrow-sense, Cullis"),
         if (!is.null(cmp)) {
           metric("Competition LRT",
-                 if (is.na(cmp$lrt$p_value)) "–"
+                 if (is.na(cmp$lrt$p_value)) "\u2013"
                  else format.pval(cmp$lrt$p_value, digits = 2, eps = 1e-12),
                  sprintf("chi-square %.1f on %d df", cmp$lrt$LR_statistic, cmp$lrt$df))
         }

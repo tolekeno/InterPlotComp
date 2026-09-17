@@ -38,6 +38,7 @@ OPTIONAL_PACKAGES <- c(
 #' contexts that may run many times per second.
 #' @param pkg package name
 #' @return TRUE/FALSE
+#' @noRd
 has_pkg <- local({
   cache <- new.env(parent = emptyenv())
   function(pkg) {
@@ -49,6 +50,7 @@ has_pkg <- local({
 })
 
 #' Abort with an actionable message when hard requirements are missing.
+#' @noRd
 check_required_packages <- function() {
   missing <- REQUIRED_PACKAGES[!vapply(REQUIRED_PACKAGES, has_pkg, logical(1))]
   if (length(missing)) {
@@ -64,6 +66,7 @@ check_required_packages <- function() {
 }
 
 #' Report which optional packages are absent, for display in the About tab.
+#' @noRd
 optional_package_status <- function() {
   data.frame(
     Package   = names(OPTIONAL_PACKAGES),

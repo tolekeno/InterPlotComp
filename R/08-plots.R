@@ -9,11 +9,13 @@
 # ---------------------------------------------------------------------------
 
 #' Caption giving the fitted model, so exported figures are self-documenting.
+#' @noRd
 model_caption <- function(result, extra = NULL) {
   paste(c(paste0("Model: ", result$description), extra), collapse = " | ")
 }
 
 #' Wrap long captions so they do not run off the canvas.
+#' @noRd
 wrap_caption <- function(x, width = 110) {
   if (is.null(x) || !nzchar(x)) return(NULL)
   paste(strwrap(x, width = width), collapse = "\n")
@@ -23,6 +25,7 @@ wrap_caption <- function(x, width = 110) {
 #'
 #' Subtitles are set larger than captions, so they need a narrower measure or
 #' they run past the right edge of the canvas.
+#' @noRd
 wrap_subtitle <- function(x, width = 88) wrap_caption(x, width)
 
 # ---------------------------------------------------------------------------
@@ -40,6 +43,7 @@ wrap_subtitle <- function(x, width = 88) wrap_caption(x, width)
 #' @param title,subtitle figure text
 #' @param diverging use the diverging palette (residuals) or sequential (yield)
 #' @param facet facet by environment when TRUE
+#' @noRd
 plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
                            diverging = FALSE, facet = FALSE, base_size = 12,
                            caption = NULL, fill_label = NULL) {
@@ -87,6 +91,7 @@ plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
 #' effect with an aggressive competitive effect means part of the apparent
 #' advantage was taken from its neighbours and will not carry into a pure
 #' stand or a farmer's field.
+#' @noRd
 plot_direct_vs_competition <- function(genetic, k = 2, label_n = 12,
                                        base_size = 12, caption = NULL) {
   d <- genetic[stats::complete.cases(genetic[c("Direct_effect", "Competition_effect")]), ]
@@ -136,6 +141,7 @@ plot_direct_vs_competition <- function(genetic, k = 2, label_n = 12,
 #' Error bars use the prediction error variance of the plotted combination, so
 #' the interval around a pure-stand value is correct rather than the far too
 #' wide one obtained by adding the direct and competitive standard errors.
+#' @noRd
 plot_ranking <- function(genetic, effect = c("Pure_stand_effect", "Direct_effect"),
                          se_col = NULL, top_n = 30, base_size = 12,
                          caption = NULL, conf = 0.95) {
@@ -181,6 +187,7 @@ plot_ranking <- function(genetic, effect = c("Pure_stand_effect", "Direct_effect
 #' A slope chart between the direct-effect ranking and the pure-stand ranking.
 #' Large crossings are the practical payoff of the competition model: those
 #' genotypes would have been mis-selected on direct effects alone.
+#' @noRd
 plot_rank_change <- function(genetic, top_n = 25, base_size = 12, caption = NULL) {
   d <- genetic[stats::complete.cases(genetic[c("Rank_direct", "Rank_pure_stand")]), ]
   d <- utils::head(d[order(d$Rank_pure_stand), ], top_n)
@@ -214,6 +221,7 @@ plot_rank_change <- function(genetic, top_n = 25, base_size = 12, caption = NULL
 }
 
 #' Variance components as a share of the total.
+#' @noRd
 plot_variance_components <- function(varcomp, base_size = 12, caption = NULL) {
   d <- varcomp[is.finite(varcomp$Pct_of_total) & varcomp$Pct_of_total > 0, , drop = FALSE]
   if (!nrow(d)) stop("No positive variance components to plot.")
@@ -237,6 +245,7 @@ plot_variance_components <- function(varcomp, base_size = 12, caption = NULL) {
 # ---------------------------------------------------------------------------
 
 #' Residual diagnostics: fitted values, normal quantiles and distribution.
+#' @noRd
 plot_residual_diagnostics <- function(res, base_size = 12, caption = NULL) {
   res <- res[is.finite(res$Residual) & is.finite(res$Fitted), , drop = FALSE]
   if (!nrow(res)) stop("No residuals are available for diagnostics.")
@@ -304,6 +313,7 @@ residual") +
 #' a plateau. Ridges along a displacement axis, or a surface that keeps rising,
 #' indicate trend the spatial model has not absorbed (Gilmour, Cullis &
 #' Verbyla 1997).
+#' @noRd
 plot_variogram <- function(v, base_size = 12, caption = NULL) {
   if (is.null(v) || !nrow(v)) stop("ASReml did not return a sample variogram.")
   ggplot2::ggplot(v, ggplot2::aes(x = .data$Column, y = .data$Row,
@@ -326,6 +336,7 @@ plot_variogram <- function(v, base_size = 12, caption = NULL) {
 # ---------------------------------------------------------------------------
 
 #' Genetic-correlation heatmap between environments.
+#' @noRd
 plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
                                      caption = NULL, show_values = TRUE) {
   m <- as.matrix(m)
@@ -353,7 +364,7 @@ plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
 
   if (show_values && nrow(m) <= 16) {
     p <- p + ggplot2::geom_text(
-      ggplot2::aes(label = ifelse(is.na(.data$Correlation), "–",
+      ggplot2::aes(label = ifelse(is.na(.data$Correlation), "\u2013",
                                   sprintf("%.2f", .data$Correlation)),
                    colour = abs(.data$Correlation) > 0.6),
       size = base_size * 0.23, fontface = "bold", show.legend = FALSE) +
@@ -363,6 +374,7 @@ plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
 }
 
 #' Direct, competitive and pure-stand genetic variance in each environment.
+#' @noRd
 plot_environment_variances <- function(v, base_size = 12, caption = NULL) {
   long <- rbind(
     data.frame(Environment = v$Environment, Effect = "Direct",
@@ -392,6 +404,7 @@ plot_environment_variances <- function(v, base_size = 12, caption = NULL) {
 #' parallel indicate stable genotypes; lines that cross indicate crossover
 #' genotype-by-environment interaction and therefore environment-specific
 #' recommendations.
+#' @noRd
 plot_stability <- function(values, top_n = 12, base_size = 12, caption = NULL) {
   d <- values[values$Status == "Estimable", , drop = FALSE]
   mean_effect <- tapply(d$Pure_stand_effect, d$Genotype, mean, na.rm = TRUE)
@@ -422,6 +435,7 @@ plot_stability <- function(values, top_n = 12, base_size = 12, caption = NULL) {
 }
 
 #' Percentage of genetic variance explained by the factor-analytic factors.
+#' @noRd
 plot_fa_summary <- function(fa, base_size = 12, caption = NULL) {
   fa$Environment <- factor(fa$Environment, levels = unique(fa$Environment))
   ggplot2::ggplot(fa, ggplot2::aes(x = .data$Environment,
@@ -440,6 +454,7 @@ plot_fa_summary <- function(fa, base_size = 12, caption = NULL) {
 }
 
 #' Direct against competitive effects, one panel per environment.
+#' @noRd
 plot_met_scatter <- function(values, k = 2, base_size = 12, caption = NULL) {
   d <- values[values$Status == "Estimable", , drop = FALSE]
   ggplot2::ggplot(d, ggplot2::aes(.data$Direct_effect, .data$Competition_effect)) +

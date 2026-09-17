@@ -1,0 +1,7 @@
+^app\.R$
+^R/_disable_autoload\.R$
+^\.git$
+^\.gitignore$
+^.*\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$

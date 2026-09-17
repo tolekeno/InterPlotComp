@@ -8,7 +8,13 @@
 # outbound internet access.
 # ---------------------------------------------------------------------------
 
-APP_VERSION <- "3.1.0"
+# Shown in the navigation bar. Kept in step with the Version field of
+# DESCRIPTION; read from there when the package is installed so the two
+# cannot drift, with a literal fallback for a source checkout.
+APP_VERSION <- tryCatch(
+  as.character(utils::packageVersion("InterPlotComp")),
+  error = function(e) "3.2.0"
+)
 
 # Palette: field greens for structure, warm earth for competition, a
 # colour-blind-safe diverging ramp for correlations and spatial residuals.
@@ -55,6 +61,7 @@ MONO_STACK <- paste('"Cascadia Mono"', '"SFMono-Regular"', "Consolas",
                     '"Liberation Mono"', "monospace", sep = ", ")
 
 #' Bootstrap 5 theme for the whole application.
+#' @noRd
 app_theme <- function() {
   bslib::bs_theme(
     version           = 5,
@@ -81,6 +88,7 @@ app_theme <- function() {
 }
 
 #' Additional CSS that Bootstrap variables alone cannot express.
+#' @noRd
 app_css <- function() {
   htmltools::HTML(sprintf("
     .navbar-brand { font-weight: 650; letter-spacing: .2px; }
@@ -139,6 +147,7 @@ app_css <- function() {
 #'
 #' `base_size` is raised for exported figures so that text scales with the
 #' larger canvas instead of becoming unreadably small at 600 dpi.
+#' @noRd
 theme_trial <- function(base_size = 12, grid = "xy") {
   th <- ggplot2::theme_minimal(base_size = base_size) +
     ggplot2::theme(
@@ -178,6 +187,7 @@ theme_trial <- function(base_size = 12, grid = "xy") {
 }
 
 #' Effect-type colour scale shared by all figures.
+#' @noRd
 effect_colours <- function() {
   c(Direct = PAL$direct, Competition = PAL$competition, `Pure stand` = PAL$pure,
     Neighbour = PAL$competition)

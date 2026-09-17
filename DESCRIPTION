@@ -1,0 +1,48 @@
+Package: InterPlotComp
+Title: Inter-Plot Competition Analysis for Plant Breeding Trials
+Version: 3.2.0
+Authors@R:
+    person("Tolera", "Keno", email = "tolekeno@gmail.com", role = c("aut", "cre"))
+Description: Fits direct-competition mixed models to unbordered single-row-plot
+    breeding trials using 'ASReml-R' as the computational engine. For every
+    genotype the model separates the effect expressed in its own plot from the
+    effect it imposes on neighbouring plots, and combines them into the value
+    the genotype would express in a pure stand. Handles a single trial or a
+    series of environments, separable AR1 x AR1 spatial residuals, pedigree and
+    genomic relationship matrices, exact prediction error variances, and
+    publication-quality figure export. Includes a 'Shiny' interface, launched
+    with run_app(). 'ASReml-R' is commercial software licensed by VSNi and is
+    not supplied by this package; it must be installed and licensed separately.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends:
+    R (>= 4.1)
+Imports:
+    bslib (>= 0.5.0),
+    DT,
+    ggplot2 (>= 3.4.0),
+    grDevices,
+    grid,
+    htmltools,
+    Matrix,
+    rlang,
+    scales,
+    shiny (>= 1.7.0),
+    stats,
+    utils
+Suggests:
+    asreml (>= 4.1),
+    bsicons,
+    ggrepel,
+    patchwork,
+    plotly,
+    ragg,
+    shinycssloaders,
+    shinyWidgets,
+    svglite,
+    thematic,
+    viridisLite,
+    writexl
+URL: https://github.com/tolekeno/InterPlotComp
+BugReports: https://github.com/tolekeno/InterPlotComp/issues
+Config/roxygen2/version: 8.1.0

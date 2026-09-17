@@ -14,6 +14,7 @@
 # ---------------------------------------------------------------------------
 
 #' True parameter values used by the simulator, shown in the app's help text.
+#' @noRd
 SIM_TRUTH <- list(
   direct_var      = 0.36,
   competition_var = 0.09,
@@ -27,6 +28,7 @@ SIM_TRUTH <- list(
 )
 
 #' Draw correlated direct and competitive effects for a genotype panel.
+#' @noRd
 simulate_genetic_effects <- function(genotypes, truth = SIM_TRUTH) {
   n <- length(genotypes)
   s <- matrix(c(truth$direct_var,
@@ -39,6 +41,7 @@ simulate_genetic_effects <- function(genotypes, truth = SIM_TRUTH) {
 }
 
 #' AR1 x AR1 spatial surface on a row x column grid.
+#' @noRd
 simulate_ar1_surface <- function(n_rows, n_cols, var, rho_row, rho_col) {
   ar1 <- function(n, rho) rho^abs(outer(seq_len(n), seq_len(n), "-"))
   s <- sqrt(var) * (chol(ar1(n_rows, rho_row)))
@@ -53,6 +56,7 @@ simulate_ar1_surface <- function(n_rows, n_cols, var, rho_row, rho_col) {
 #' @param n_geno number of genotypes; replication is `n_rows * n_cols / n_geno`
 #' @param seed random seed
 #' @param truth list of true variance parameters
+#' @noRd
 simulate_trial <- function(n_rows = 15, n_cols = 12, n_geno = 60, seed = 2026,
                            truth = SIM_TRUTH, env_effect = 0,
                            genotypes = NULL, effects = NULL) {
@@ -104,7 +108,20 @@ simulate_trial <- function(n_rows = 15, n_cols = 12, n_geno = 60, seed = 2026,
   d
 }
 
-#' Single-trial worked example, with realistic imperfections.
+#' Worked example: a single trial with inter-plot competition
+#'
+#' Simulates one 15 x 12 single-row-plot trial of 60 genotypes from the known
+#' parameters in `SIM_TRUTH`, so that a fitted model can be checked against the
+#' values that generated the data. Includes the imperfections that break naive
+#' code: an incomplete block design, AR1 spatial trend, three failed plots and
+#' one position physically absent from the field.
+#'
+#' @return A data frame with columns `Row`, `Column`, `Rep`, `Block`,
+#'   `Genotype` and `Yield_t_ha`.
+#' @export
+#' @examples
+#' d <- sample_single_trial()
+#' str(d)
 sample_single_trial <- function() {
   d <- simulate_trial(n_rows = 15, n_cols = 12, n_geno = 60, seed = 2026)
   set.seed(11)
@@ -117,11 +134,19 @@ sample_single_trial <- function() {
   d
 }
 
-#' Multi-environment worked example.
+#' Worked example: a multi-environment trial series
 #'
 #' Four environments of different sizes, sharing a core genotype set with
-#' environment-specific additions, moderate crossover G x E, and one internal
-#' grid hole.
+#' environment-specific additions, moderate crossover genotype-by-environment
+#' interaction, unequal replication, six failed plots and one internal grid
+#' hole.
+#'
+#' @return A data frame with columns `Environment`, `Row`, `Column`, `Rep`,
+#'   `Block`, `Genotype` and `Yield_t_ha`.
+#' @export
+#' @examples
+#' d <- sample_met_trial()
+#' table(d$Environment)
 sample_met_trial <- function() {
   core <- sprintf("MZ%03d", 1:40)
   extra <- sprintf("MZ%03d", 41:52)
@@ -162,12 +187,21 @@ sample_met_trial <- function() {
   d
 }
 
-#' Example pedigree matching the worked single-trial and MET examples.
+#' Worked example: a pedigree for the example trials
 #'
 #' A conventional breeding structure: ten unrelated founders crossed as five
 #' males by five females, so the trial entries form overlapping full-sib and
 #' half-sib families. That is exactly the structure a relationship matrix
 #' exploits, and it lets the worked example demonstrate the feature end to end.
+#'
+#' @param genotypes Character vector of entry identifiers to assign parents to.
+#'   Defaults to the genotypes of both worked example trials.
+#' @return A data frame with columns `Genotype`, `Male_parent` and
+#'   `Female_parent`, founders having `NA` parents.
+#' @export
+#' @examples
+#' ped <- sample_pedigree()
+#' head(ped)
 sample_pedigree <- function(genotypes = NULL) {
   if (is.null(genotypes)) {
     genotypes <- sort(unique(c(sample_single_trial()$Genotype,

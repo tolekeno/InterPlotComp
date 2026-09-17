@@ -23,9 +23,11 @@ RECOVERABLE_PATTERNS <- paste(
 )
 
 #' Is ASReml-R installed in this R library?
+#' @noRd
 asreml_installed <- function() has_pkg("asreml")
 
 #' Installed ASReml-R version, or NA.
+#' @noRd
 asreml_version <- function() {
   if (!asreml_installed()) return(NA_character_)
   tryCatch(as.character(utils::packageVersion("asreml")), error = function(e) NA_character_)
@@ -36,6 +38,7 @@ asreml_version <- function() {
 #' ASReml's special model functions (`str`, `and`, `us`, `corgh`, `facv`, `id`,
 #' `ar1v`, `dsum`) are resolved when the model formulae are evaluated, so the
 #' package must be attached rather than merely namespace-loaded.
+#' @noRd
 load_asreml <- function() {
   if (!asreml_installed()) {
     stop(
@@ -66,6 +69,7 @@ load_asreml <- function() {
 }
 
 #' One-line description of the ASReml installation for the UI.
+#' @noRd
 asreml_status <- function() {
   if (!asreml_installed()) {
     return(list(ok = FALSE, level = "bad",
@@ -85,6 +89,7 @@ asreml_status <- function() {
 # ---------------------------------------------------------------------------
 
 #' Tidy `fit$vparameters` with the constraint codes attached.
+#' @noRd
 parameter_table <- function(fit) {
   v <- fit$vparameters
   if (is.null(v) || !length(v)) return(data.frame())
@@ -106,6 +111,7 @@ parameter_table <- function(fit) {
 #' Adds the proportion of total variance contributed by each component, which
 #' is what breeders normally want to read off, and flags components sitting at
 #' a boundary because those invalidate the usual standard errors.
+#' @noRd
 variance_component_table <- function(fit) {
   vc <- as.data.frame(summary(fit)$varcomp)
   vc$Component <- rownames(vc)
@@ -130,6 +136,7 @@ variance_component_table <- function(fit) {
 }
 
 #' Fail with a consistent, actionable message when extraction is impossible.
+#' @noRd
 stop_extract <- function(what) {
   stop("Could not reconstruct ", what, " from the ASReml variance parameters. ",
        "Open the 'Variance components' tab to see exactly what was estimated, ",
@@ -146,6 +153,7 @@ stop_extract <- function(what) {
 #' @param fit fitted asreml object
 #' @param structure "us", "corgh" or "diag"
 #' @return list(matrix = 2 x 2 covariance, note = plain-English description)
+#' @noRd
 genetic_covariance_2x2 <- function(fit, structure) {
   p <- parameter_table(fit)
   if (!nrow(p)) stop("ASReml returned no variance parameters.", call. = FALSE)
@@ -202,6 +210,7 @@ genetic_covariance_2x2 <- function(fit, structure) {
 #' @param effect_levels level names of the 2E-level effect factor, direct first
 #' @param env_levels level names of the E-level environment factor (separable)
 #' @param rank factor-analytic rank
+#' @noRd
 genetic_covariance_met <- function(fit, structure, effect_levels,
                                    env_levels = NULL, rank = 1L) {
   p <- parameter_table(fit)
@@ -271,6 +280,7 @@ genetic_covariance_met <- function(fit, structure, effect_levels,
 #'   G_PS = G_D + k^2 G_C + k (G_DC + G_DC')
 #' which is the variance of D + kC, the genetic value a genotype would express
 #' when every neighbour is itself.
+#' @noRd
 partition_genetic_covariance <- function(G, k, labels = NULL) {
   n <- nrow(G) / 2
   if (n != round(n)) stop("The joint genetic matrix must have even dimension.", call. = FALSE)
@@ -303,6 +313,7 @@ partition_genetic_covariance <- function(G, k, labels = NULL) {
 # ---------------------------------------------------------------------------
 
 #' Size of the mixed-model coefficient matrix, used to gate the Cinv request.
+#' @noRd
 n_model_coefficients <- function(d, terms, n_geno, k_blocks = 2L) {
   design <- sum(vapply(terms, function(x) nlevels(d[[x]]), integer(1)), na.rm = TRUE)
   design + k_blocks * n_geno + 10L
@@ -325,6 +336,7 @@ n_model_coefficients <- function(d, terms, n_geno, k_blocks = 2L) {
 #' @param direct_labels,competition_labels coefficient names, same order
 #' @param k number of competing neighbours
 #' @return data frame of PEVs, or NULL when Cinv is unavailable
+#' @noRd
 pev_direct_competition <- function(fit, direct_labels, competition_labels, k) {
   C <- fit$Cinv
   if (is.null(C)) return(NULL)
@@ -357,6 +369,7 @@ pev_direct_competition <- function(fit, direct_labels, competition_labels, k) {
 #' predicted and true genetic value; accuracy is its square root. Both are
 #' standard selection-decision statistics and are far more interpretable to a
 #' breeder than a raw standard error.
+#' @noRd
 reliability <- function(pev, genetic_variance) {
   if (!is.finite(genetic_variance) || genetic_variance <= 0) return(rep(NA_real_, length(pev)))
   pmin(pmax(1 - pev / genetic_variance, 0), 1)
@@ -367,6 +380,7 @@ reliability <- function(pev, genetic_variance) {
 #' Cullis, Smith & Coombes (2006). Uses mean PEV as the approximation to half
 #' the mean pairwise prediction error variance of differences, which is exact
 #' for a balanced design and close otherwise.
+#' @noRd
 cullis_h2 <- function(pev, genetic_variance) {
   if (!is.finite(genetic_variance) || genetic_variance <= 0) return(NA_real_)
   pev <- pev[is.finite(pev)]
@@ -379,6 +393,7 @@ cullis_h2 <- function(pev, genetic_variance) {
 # ---------------------------------------------------------------------------
 
 #' Goodness-of-fit statistics in a single row.
+#' @noRd
 fit_statistics <- function(fit, label = "") {
   s <- suppressWarnings(summary(fit))
   npar <- attr(s$aic, "parameters") %||% NA_integer_
@@ -399,6 +414,7 @@ fit_statistics <- function(fit, label = "") {
 #' guarantees by construction. Variance parameters tested at a boundary make
 #' the chi-square p-value conservative; this is stated in the output rather
 #' than silently corrected.
+#' @noRd
 likelihood_ratio_test <- function(full, reduced, label_full, label_reduced) {
   df <- (attr(summary(full)$aic, "parameters") %||% NA) -
     (attr(summary(reduced)$aic, "parameters") %||% NA)
@@ -424,6 +440,7 @@ likelihood_ratio_test <- function(full, reduced, label_full, label_reduced) {
 #' @param fit_fun function(spec) returning a fitted model
 #' @param allow_fallback if FALSE, only the first specification is attempted
 #' @return list(fit, spec, log, warnings)
+#' @noRd
 run_fit_ladder <- function(specs, fit_fun, allow_fallback = TRUE,
                            progress = NULL) {
   log <- character(0)
@@ -443,12 +460,12 @@ run_fit_ladder <- function(specs, fit_fun, allow_fallback = TRUE,
     )
 
     if (isTRUE(attempt$ok)) {
-      log <- c(log, sprintf("%d. %s — fitted successfully.", i, spec$reason))
+      log <- c(log, sprintf("%d. %s \u2014 fitted successfully.", i, spec$reason))
       return(list(fit = attempt$fit, spec = spec, log = log,
                   warnings = unique(captured), attempts = i))
     }
 
-    log <- c(log, sprintf("%d. %s — failed: %s", i, spec$reason,
+    log <- c(log, sprintf("%d. %s \u2014 failed: %s", i, spec$reason,
                           gsub("[\r\n]+", " ", attempt$message)))
 
     recoverable <- grepl(RECOVERABLE_PATTERNS, attempt$message, ignore.case = TRUE)
@@ -465,6 +482,7 @@ run_fit_ladder <- function(specs, fit_fun, allow_fallback = TRUE,
 }
 
 #' Format the ladder log for on-screen display.
+#' @noRd
 format_attempt_log <- function(log) paste(log, collapse = "\n")
 
 #' Readable model summary for the on-screen panel.
@@ -473,6 +491,7 @@ format_attempt_log <- function(log) paste(log, collapse = "\n")
 #' entire body of `asreml()` - several hundred lines of internal source that
 #' bury the results and even echo licence-handling internals. Only the parts a
 #' user needs are printed here; the raw object remains available to the code.
+#' @noRd
 print_model_summary <- function(result) {
   line <- function() cat(strrep("-", 72), "
 ")
