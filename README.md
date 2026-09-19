@@ -281,7 +281,7 @@ before inversion. The blending weight is adjustable.
 For the MET workspace the same substitution applies, with the genotype dimension
 of the joint covariance becoming `vm(Geno, K)`.
 
-### Adjusting for a competition trait
+### Adjusting for a covariate
 
 Interference has a physical cause. Where that cause has been measured — plant
 height, canopy width, root vigour — the model can use the measurement directly
@@ -292,20 +292,26 @@ summed over the same neighbours that supply the competitive genetic effects, and
 fitted as a fixed covariate:
 
 ```r
-fixed = Yield ~ 1 + Trait_nb              # single trial
-fixed = Yield ~ Env + Trait_nb            # MET
+fixed = Yield ~ 1 + Covariate_nb              # single trial
+fixed = Yield ~ Env + Covariate_nb            # MET
 ```
 
 The default is a single-trait model with no adjustment. The focal plot's own
 value can be added too, but is off by default: it absorbs genetic variation in
-the trait and so removes part of the direct effect being estimated.
+the covariate and so removes part of the direct effect being estimated.
 
 On the worked example, where plant height is generated from the same
 competitive effects that drive the interference, the neighbour slope is
 **−0.016 t/ha per cm** (z = −13.1) and the competitive genetic variance falls
-from 0.073 to 0.010 — the trait was carrying most of the competition.
+from 0.073 to 0.010 — the covariate was carrying most of the competition.
 
-> **Do not compare log-likelihood, AIC or BIC** between a run with the trait and
+A **Wald test** accompanies the covariate: a conditional F-test of each fixed
+term with computed denominator degrees of freedom, reported with a plain
+`Retain` column. On the worked example the height covariate gives p < 2e-16
+(retain); a covariate of pure noise gives p = 0.46 and `Retain = No`, returning
+the model to a single-trait analysis.
+
+> **Do not compare log-likelihood, AIC or BIC** between a run with the covariate and
 > one without. Adding a covariate changes the fixed model, and REML likelihoods
 > are comparable only when the fixed effects are identical. Compare the variance
 > components and the direct–competition correlation instead. The
@@ -361,7 +367,7 @@ One row per physical plot:
 | Environment | MET only | Site/year identifier |
 | Replicate | no | |
 | Block | no | Nested within replicate (and environment) automatically |
-| Adjustment trait | no | A measured proxy for interference — plant height, canopy width, root vigour |
+| Covariate | no | A measured proxy for interference — plant height, canopy width, root vigour |
 
 A pedigree, kinship matrix or marker file is supplied separately, in the
 **Genetic relationship** section of the sidebar. A worked example pedigree
@@ -424,6 +430,20 @@ The data panel warns automatically about most of these:
   reported; read the fitting log before quoting estimates.
 
 ---
+
+## Convergence
+
+ASReml stops at its iteration limit whether or not the variance parameters have
+settled, and a model reported as not converged is not safe to quote. The
+application restarts the fit from the current estimates and keeps going until
+ASReml reports convergence, reporting how many further rounds were needed. The
+iteration limit in the sidebar sets the length of each round, not a cap on the
+whole fit. A round limit remains so a genuinely non-convergent model cannot run
+forever; reaching it is reported rather than hidden.
+
+Starting the worked example from a deliberately crippled `maxit = 4`, the fit
+converges after 2 further rounds and reproduces the generous-`maxit` answer to
+within 1.4e-4 on every variance component.
 
 ## Robustness: the simplification ladder
 

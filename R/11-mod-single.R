@@ -279,23 +279,23 @@ single_server <- function(id) {
           shiny::column(6, select_input(ns("block_col"), "Block (optional)", optional,
                                         guess_column(nms, c("block", "iblk", "incomplete"), "")))
         ),
-        select_input(ns("trait_col"),
-                     "Competition adjustment trait (optional)", optional,
+        select_input(ns("covariate_col"),
+                     "Covariate (optional)", optional,
                      guess_column(nms, c("height", "^ph$", "plant.?height",
                                          "canopy", "vigour", "vigor", "biomass"), "")),
         shiny::conditionalPanel(
-          sprintf("input['%s'] != ''", ns("trait_col")),
-          switch_input(ns("adjust_own_trait"),
+          sprintf("input['%s'] != ''", ns("covariate_col")),
+          switch_input(ns("adjust_own_covariate"),
                        "Also adjust for the plot's own value", FALSE,
-                       help = paste("Off by default: the focal plot's own trait",
+                       help = paste("Off by default: the focal plot's own covariate",
                                     "value absorbs genetic variation in that",
-                                    "trait and so removes part of the direct",
+                                    "covariate and so removes part of the direct",
                                     "effect being estimated."))
         ),
         note("A measured proxy for the physical cause of interference \u2014 plant ",
              "height, canopy width, root vigour. The neighbouring plots' values ",
              "enter as a fixed covariate, so competition attributable to the ",
-             "trait is removed before the genetic competitive effects are ",
+             "covariate is removed before the genetic competitive effects are ",
              "estimated. Leave blank for a single-trait model."),
         select_input(ns("site_col"), "Site / environment column (optional)", optional,
                      guess_column(nms, c("^env", "environment", "^site", "location", "trial"), "")),
@@ -346,7 +346,7 @@ single_server <- function(id) {
       prepare_trial_data(single_site(), list(
         yield = input$yield_col, geno = input$geno_col, row = input$row_col,
         column = input$column_col, rep = input$rep_col, block = input$block_col,
-        trait = input$trait_col))
+        covariate = input$covariate_col))
     })
 
     # Validated data, or the error message, without aborting the whole session.
@@ -479,7 +479,7 @@ single_server <- function(id) {
           maxit = input$maxit, workspace = "2gb", cinv_limit = 6000L,
           row_process = input$row_process %||% "ar1",
           col_process = input$col_process %||% "ar1",
-          adjust_own_trait = isTRUE(input$adjust_own_trait),
+          adjust_own_covariate = isTRUE(input$adjust_own_covariate),
           relationship = relationship()),
         progress = function(i, n, reason) {
           prog$set(0.15 + 0.7 * i / max(n, 1),
@@ -523,6 +523,15 @@ single_server <- function(id) {
       r <- z$value
       items <- shiny::tagList(
         shiny::div(shiny::strong("Fitted: "), r$description),
+        if (isTRUE(r$convergence_rounds > 0)) {
+          shiny::div(shiny::strong("Convergence: "),
+                     sprintf(paste("ASReml had not converged when it reached the",
+                                   "iteration limit, so the fit was continued for",
+                                   "%d further round(s)%s."),
+                             r$convergence_rounds,
+                             if (r$converged) " until it converged"
+                             else ", and still reports no convergence"))
+        },
         if (r$fallback_used) {
           shiny::div(shiny::strong("Note: "),
                      "the requested model was not identifiable, so the ",
@@ -602,19 +611,32 @@ single_server <- function(id) {
       dt_table(single_heritability_table(res()), digits = 4, page_length = 5)
     })
     output$fixed_card <- shiny::renderUI({
-      if (!length(res()$trait_terms)) return(NULL)
+      if (!length(res()$covariate_terms)) return(NULL)
       panel_card(
-        "Competition adjustment trait",
+        "Covariate",
+        shiny::h6("Wald test"),
+        DT::DTOutput(ns("wald")),
+        note(shiny::strong("Wald test. "),
+             "A conditional F-test of each fixed term, adjusted for the terms ",
+             "above it. ", shiny::strong("Retain = Yes"),
+             " means the term is significant at p < 0.05 and is earning its ",
+             "place; ", shiny::strong("No"),
+             " means the covariate is not explaining variation in yield and can ",
+             "be dropped, which returns the model to a single-trait analysis. ",
+             "The denominator degrees of freedom are computed rather than ",
+             "assumed infinite, so the test is not anti-conservative on a ",
+             "trial-sized dataset."),
+        shiny::h6("Estimated slopes"),
         DT::DTOutput(ns("fixed_effects")),
         note("The neighbour slope is the adjustment: it is the change in a ",
-             "plot's yield per unit of the trait summed over its neighbours. ",
+             "plot's yield per unit of the covariate summed over its neighbours. ",
              "A negative slope means larger neighbours suppress the focal plot, ",
              "which is interference the model has now removed before estimating ",
              "the genetic competitive effects. Compare the direct-competition ",
-             "correlation with and without the trait to see how much of the ",
+             "correlation with and without the covariate to see how much of the ",
              "competition it explains."),
         note(shiny::strong("Do not compare log-likelihood, AIC or BIC "),
-             "between a run with the adjustment trait and one without. Adding a ",
+             "between a run with the covariate and one without. Adding a ",
              "covariate changes the fixed model, and REML likelihoods are only ",
              "comparable when the fixed effects are identical. Compare the ",
              "variance components and the direct-competition correlation ",
@@ -625,6 +647,12 @@ single_server <- function(id) {
     })
     output$fixed_effects <- DT::renderDT({
       dt_table(res()$fixed_effects, digits = 5, page_length = 10)
+    })
+    output$wald <- DT::renderDT({
+      w <- res()$wald
+      shiny::validate(shiny::need(!is.null(w),
+        "ASReml did not return a Wald table for this model."))
+      dt_table(w, digits = 4, page_length = 10)
     })
     table_download_server("dl_h2", function() single_heritability_table(res()),
                           "interplot_heritability")
@@ -761,6 +789,7 @@ single_server <- function(id) {
           `Genetic values` = genetic_split()$evaluated,
           `Predicted relatives` = genetic_split()$inferred,
           `Heritability` = single_heritability_table(r),
+          `Wald tests` = r$wald,
           `Variance summary` = r$variance,
           `ASReml variance parameters` = r$varcomp,
           `Model comparison` = r$comparison$table,

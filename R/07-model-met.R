@@ -278,10 +278,10 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
   old_options <- asreml::asreml.options(Cinv = want_cinv)
   on.exit(do.call(asreml::asreml.options, old_options), add = TRUE)
 
-  # See fit_single_model(): the adjustment trait enters as fixed covariates,
+  # See fit_single_model(): the covariate enters as fixed covariates,
   # carried by the baseline model too so the likelihood-ratio test stays valid.
-  trait_terms <- trait_fixed_terms(d, opts$adjust_own_trait)
-  fixed_text <- paste(c("Yield ~ Env", trait_terms), collapse = " + ")
+  covariate_terms <- covariate_fixed_terms(d, opts$adjust_own_covariate)
+  fixed_text <- paste(c("Yield ~ Env", covariate_terms), collapse = " + ")
 
   fit_one <- function(spec, competition = TRUE) {
     f <- met_formulae(spec$design_terms, neighbour_names, n_geno, n_env,
@@ -308,6 +308,16 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
   run <- run_fit_ladder(specs, fit_one, isTRUE(opts$auto_simplify), progress)
   fit <- run$fit
   spec <- run$spec
+
+  # See fit_single_model(): continue the fit until ASReml reports convergence.
+  extra <- iterate_to_convergence(fit, opts$max_rounds %||% 15L,
+                                  progress = function(r) {
+                                    if (is.function(progress)) {
+                                      progress(length(specs), length(specs),
+                                               sprintf("Continuing to convergence (round %d)", r))
+                                    }
+                                  })
+  fit <- extra$fit
 
   # For the fa structure the covariance parameters are named after the model
   # terms themselves, so the extractor needs the exact term strings.
@@ -361,12 +371,14 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
     comparison = comparison,
     fit_stats = fit_statistics(fit, "Fitted MET competition model"),
     fixed_effects = fixed_effects_table(s),
-    trait_terms = trait_terms,
-    trait_name = attr(d, "trait_name"),
+    wald = wald_table(fit),
+    convergence_rounds = extra$rounds,
+    covariate_terms = covariate_terms,
+    covariate_name = attr(d, "covariate_name"),
     log = run$log, warnings = run$warnings,
     fallback_used = !identical(spec$reason, "Requested model"),
     converged = isTRUE(fit$converge),
-    description = describe_met_model(spec, k, n_env, relationship, trait_terms),
+    description = describe_met_model(spec, k, n_env, relationship, covariate_terms),
     relationship = relationship,
     coverage = coverage,
     residuals = residual_frame(fit, d)
@@ -603,7 +615,7 @@ fa_variance_explained <- function(fit, spec, effect_levels, env_levels,
 #' One-sentence description of the fitted MET model.
 #' @noRd
 describe_met_model <- function(spec, k, n_env, relationship = NULL,
-                              trait_terms = character(0)) {
+                              covariate_terms = character(0)) {
   genetic <- switch(
     spec$structure,
     facv = sprintf("joint FA(%d) covariance over %d direct and %d competitive environment effects",
@@ -627,11 +639,11 @@ describe_met_model <- function(spec, k, n_env, relationship = NULL,
     if (spec$nugget) " with a common nugget" else "",
     if (!is.null(relationship)) paste0(", ", relationship$label) else
       ", independent genotypes",
-    if (length(trait_terms)) {
+    if (length(covariate_terms)) {
       paste0(", adjusted for ",
-             if ("Trait_own" %in% trait_terms) {
-               "the neighbouring and own-plot values of the adjustment trait"
-             } else "the neighbouring plots' adjustment trait")
+             if ("Covariate_own" %in% covariate_terms) {
+               "the neighbouring and own-plot values of the covariate"
+             } else "the neighbouring plots' covariate")
     } else "",
     sprintf("; %d competing neighbours", k)
   )

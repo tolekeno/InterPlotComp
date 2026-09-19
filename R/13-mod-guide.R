@@ -125,6 +125,24 @@ guide_ui <- function(id) {
         ),
 
         bslib::accordion_panel(
+          "Convergence", value = "convergence", icon = ic("arrow-repeat"),
+          shiny::p("ASReml stops at its iteration limit whether or not the ",
+                   "variance parameters have settled. A model reported as not ",
+                   "converged is not safe to quote: its estimates are wherever ",
+                   "the algorithm happened to be when it ran out of steps."),
+          shiny::p("The application therefore restarts the fit from the current ",
+                   "estimates and keeps going until ASReml reports convergence. ",
+                   "The results banner says how many further rounds were needed. ",
+                   "The iteration limit in the sidebar sets the length of each ",
+                   "round, not a cap on the whole fit."),
+          shiny::p("A round limit still exists so that a genuinely ",
+                   "non-convergent model cannot run forever. If it is reached, ",
+                   "the banner says so plainly rather than presenting the ",
+                   "result as final; treat those estimates as unusable and ",
+                   "simplify the model.")
+        ),
+
+        bslib::accordion_panel(
           "When not to trust the result", value = "caveats", icon = ic("exclamation-triangle"),
           shiny::tags$ul(
             shiny::tags$li("Each genotype borders only one or two distinct ",
@@ -149,7 +167,7 @@ guide_ui <- function(id) {
         ),
 
         bslib::accordion_panel(
-          "Adjusting for a competition trait", value = "trait",
+          "Adjusting for a covariate", value = "trait",
           icon = ic("rulers"),
           shiny::p("Interference has a physical cause. If you have measured a ",
                    "trait that carries it \u2014 plant height, canopy width, root ",
@@ -165,12 +183,12 @@ guide_ui <- function(id) {
                    "single-trait model with no adjustment."),
           shiny::tags$dl(
             shiny::tags$dt("Neighbour slope"),
-            shiny::tags$dd("The change in a plot's yield per unit of the trait ",
+            shiny::tags$dd("The change in a plot's yield per unit of the covariate ",
                            "summed over its neighbours. Negative means larger ",
                            "neighbours suppress the focal plot."),
             shiny::tags$dt("Own-plot value"),
             shiny::tags$dd("Optional and off by default. It absorbs genetic ",
-                           "variation in the trait and so removes part of the ",
+                           "variation in the covariate and so removes part of the ",
                            "direct effect you are trying to estimate. Turn it on ",
                            "only if you want yield adjusted to a common plant ",
                            "size."),
@@ -178,9 +196,17 @@ guide_ui <- function(id) {
             shiny::tags$dd("The competitive genetic variance and the ",
                            "direct-competition correlation, with and without ",
                            "the trait. If the competitive variance falls sharply ",
-                           "once the trait is fitted, the trait was carrying the ",
+                           "once the covariate is fitted, the covariate was carrying the ",
                            "competition.")
           ),
+          shiny::p(shiny::strong("Should the covariate stay? "),
+                   "The ", shiny::em("Covariate"), " card reports a Wald test: ",
+                   "a conditional F-test of each fixed term, with the ",
+                   "denominator degrees of freedom computed rather than assumed ",
+                   "infinite. A ", shiny::strong("Retain"), " of ",
+                   shiny::strong("No"), " means the covariate is not explaining ",
+                   "variation in yield and can be dropped, returning the model ",
+                   "to a single-trait analysis."),
           shiny::p(shiny::strong("One thing not to do. "),
                    "Do not compare log-likelihood, AIC or BIC between a run with ",
                    "the trait and one without. Adding a covariate changes the ",

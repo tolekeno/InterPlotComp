@@ -1,6 +1,6 @@
 Package: InterPlotComp
 Title: Inter-Plot Competition Analysis for Plant Breeding Trials
-Version: 3.5.0
+Version: 3.6.0
 Authors@R:
     person("Tolera", "Keno", email = "tolekeno@gmail.com", role = c("aut", "cre"))
 Description: Fits direct-competition mixed models to unbordered single-row-plot

@@ -208,12 +208,12 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
   old_options <- asreml::asreml.options(Cinv = want_cinv)
   on.exit(do.call(asreml::asreml.options, old_options), add = TRUE)
 
-  # A competition adjustment trait enters as fixed covariates. Both the
+  # A covariate enters as fixed covariates. Both the
   # competition model and its no-competition baseline carry them, so the
   # likelihood-ratio test still compares two models with identical fixed
   # effects and tests only the genetic competitive effects.
-  trait_terms <- trait_fixed_terms(d, opts$adjust_own_trait)
-  fixed_text <- paste(c("Yield ~ 1", trait_terms), collapse = " + ")
+  covariate_terms <- covariate_fixed_terms(d, opts$adjust_own_covariate)
+  fixed_text <- paste(c("Yield ~ 1", covariate_terms), collapse = " + ")
 
   fit_one <- function(spec, competition = TRUE) {
     f <- single_formulae(spec$design_terms, neighbour_names, n_geno,
@@ -241,6 +241,17 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
   run <- run_fit_ladder(specs, fit_one, isTRUE(opts$auto_simplify), progress)
   fit <- run$fit
   spec <- run$spec
+
+  # Keep restarting from the current estimates until ASReml reports
+  # convergence: a model that merely ran out of iterations is not safe to quote.
+  extra <- iterate_to_convergence(fit, opts$max_rounds %||% 15L,
+                                  progress = function(r) {
+                                    if (is.function(progress)) {
+                                      progress(length(specs), length(specs),
+                                               sprintf("Continuing to convergence (round %d)", r))
+                                    }
+                                  })
+  fit <- extra$fit
 
   # ---- genetic covariance ------------------------------------------------
   G <- genetic_covariance_2x2(fit, spec$structure)
@@ -302,13 +313,15 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
     comparison = comparison,
     fit_stats = fit_statistics(fit, "Fitted competition model"),
     fixed_effects = fixed_effects_table(s),
-    trait_terms = trait_terms,
-    trait_name = attr(d, "trait_name"),
+    wald = wald_table(fit),
+    convergence_rounds = extra$rounds,
+    covariate_terms = covariate_terms,
+    covariate_name = attr(d, "covariate_name"),
     log = run$log,
     warnings = run$warnings,
     fallback_used = !identical(spec$reason, "Requested model"),
     converged = isTRUE(fit$converge),
-    description = describe_single_model(spec, k, relationship, trait_terms),
+    description = describe_single_model(spec, k, relationship, covariate_terms),
     residuals = residual_frame(fit, d)
   )
 }
@@ -506,7 +519,7 @@ single_variance_table <- function(fit, parts, spec, k) {
 #' One-sentence description of what was actually fitted.
 #' @noRd
 describe_single_model <- function(spec, k, relationship = NULL,
-                                 trait_terms = character(0)) {
+                                 covariate_terms = character(0)) {
   genetic <- switch(
     spec$structure,
     us    = "unstructured us(2) direct-competition covariance",
@@ -525,11 +538,11 @@ describe_single_model <- function(spec, k, relationship = NULL,
     if (spec$nugget) " with nugget" else "",
     if (!is.null(relationship)) paste0(", ", relationship$label) else
       ", independent genotypes",
-    if (length(trait_terms)) {
+    if (length(covariate_terms)) {
       paste0(", adjusted for ",
-             if ("Trait_own" %in% trait_terms) {
-               "the neighbouring and own-plot values of the adjustment trait"
-             } else "the neighbouring plots' adjustment trait")
+             if ("Covariate_own" %in% covariate_terms) {
+               "the neighbouring and own-plot values of the covariate"
+             } else "the neighbouring plots' covariate")
     } else "",
     sprintf("; %d competing neighbours", k)
   )

@@ -1,9 +1,24 @@
+# InterPlotComp 3.6.0
+
+* The fit now continues until ASReml reports convergence, restarting from the
+  current estimates as many rounds as needed rather than stopping at the
+  iteration limit. The number of extra rounds is reported. A round limit
+  remains so a non-convergent model cannot run forever, and reaching it is
+  stated rather than hidden.
+* Fixed effects now carry a **Wald test**: a conditional F-test with computed
+  denominator degrees of freedom, significance marks and a plain `Retain`
+  column, so it is clear whether a covariate should stay in the model.
+* "Competition adjustment trait" is renamed **covariate** throughout the
+  interface, the outputs, the exported workbooks and the documentation.
+* Genetic correlation heatmaps no longer draw the diagonal: it is 1 by
+  definition and only anchored the colour scale on a value never in question.
+
 # InterPlotComp 3.5.0
 
-* Optional **competition adjustment trait**. A measured proxy for interference
+* Optional **covariate**. A measured proxy for interference
   (plant height, canopy width, root vigour) can be named in the column mapping;
   the neighbouring plots' centred values are fitted as a fixed covariate, so
-  competition attributable to the trait is removed before the genetic
+  competition attributable to the covariate is removed before the genetic
   competitive effects are estimated. The focal plot's own value is available
   too, off by default. The default remains a single-trait model.
 * The **Variance & heritability** tab now shows heritabilities: Cullis

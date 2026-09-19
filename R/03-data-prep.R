@@ -115,27 +115,27 @@ prepare_trial_data <- function(raw, map, multi_env = FALSE) {
          "'. Use the single-trial workspace instead.", call. = FALSE)
   }
 
-  # ---- optional competition adjustment trait ------------------------------
+  # ---- optional covariate ------------------------------
   # A proxy for the physical cause of interference - plant height, canopy
   # width, root vigour. Centred so that a slope leaves the intercept as the
-  # fitted mean at an average trait value, which keeps predicted pure-stand
+  # fitted mean at an average covariate value, which keeps predicted pure-stand
   # yields on the scale a breeder expects.
-  if (!is_blank(map$trait)) {
-    trait <- suppressWarnings(as.numeric(raw[[map$trait]]))
+  if (!is_blank(map$covariate)) {
+    trait <- suppressWarnings(as.numeric(raw[[map$covariate]]))
     if (all(is.na(trait))) {
-      stop("The selected competition adjustment trait '", map$trait,
+      stop("The selected covariate '", map$covariate,
            "' contains no numeric values.", call. = FALSE)
     }
     if (sum(!is.na(trait)) < 0.5 * length(trait)) {
-      stop("The competition adjustment trait '", map$trait, "' is missing for ",
-           round(100 * mean(is.na(trait))), "% of plots. Adjusting for a trait ",
+      stop("The covariate '", map$covariate, "' is missing for ",
+           round(100 * mean(is.na(trait))), "% of plots. Adjusting for a covariate ",
            "that is mostly absent would bias the competitive effects more than ",
            "it corrects them.", call. = FALSE)
     }
-    d$Trait <- trait
-    d$Trait_c <- trait - mean(trait, na.rm = TRUE)
-    attr(d, "trait_mean") <- mean(trait, na.rm = TRUE)
-    attr(d, "trait_name") <- map$trait
+    d$Covariate <- trait
+    d$Covariate_c <- trait - mean(trait, na.rm = TRUE)
+    attr(d, "covariate_mean") <- mean(trait, na.rm = TRUE)
+    attr(d, "covariate_name") <- map$covariate
   }
 
   # ---- optional design factors -------------------------------------------
@@ -189,8 +189,8 @@ prepare_trial_data <- function(raw, map, multi_env = FALSE) {
   rownames(d) <- NULL
 
   attr(d, "multi_env")   <- multi_env
-  attr(d, "trait_mean")  <- if ("Trait" %in% names(d)) mean(d$Trait, na.rm = TRUE) else NULL
-  attr(d, "trait_name")  <- if (!is_blank(map$trait)) map$trait else NULL
+  attr(d, "covariate_mean")  <- if ("Covariate" %in% names(d)) mean(d$Covariate, na.rm = TRUE) else NULL
+  attr(d, "covariate_name")  <- if (!is_blank(map$covariate)) map$covariate else NULL
   attr(d, "n_coerced")   <- n_coerced
   attr(d, "field_summary") <- field_summary(d)
   d
@@ -345,20 +345,20 @@ add_neighbours <- function(d, axis = "rows") {
     d[[nm[i]]] <- factor(as.character(d$Geno[match(neighbour_key, plot_key)]),
                          levels = levs)
   }
-  # Neighbour value of the adjustment trait, summed over exactly the neighbours
+  # Neighbour value of the covariate, summed over exactly the neighbours
   # that supply the competitive genetic effects. An absent neighbour
   # contributes zero, which after centring means "an average neighbour" - the
   # same convention na.method(x = "include") applies to the genetic terms.
-  if ("Trait_c" %in% names(d)) {
-    nb_trait <- matrix(NA_real_, nrow(d), length(offsets))
+  if ("Covariate_c" %in% names(d)) {
+    nb_covariate <- matrix(NA_real_, nrow(d), length(offsets))
     for (i in seq_along(offsets)) {
       key_i <- paste(as.integer(d$Env),
                      d$Row_i + offsets[[i]][1],
                      d$Col_i + offsets[[i]][2], sep = "/")
-      nb_trait[, i] <- d$Trait_c[match(key_i, plot_key)]
+      nb_covariate[, i] <- d$Covariate_c[match(key_i, plot_key)]
     }
-    d$Trait_nb <- rowSums(nb_trait, na.rm = TRUE)
-    d$Trait_own <- ifelse(is.na(d$Trait_c), 0, d$Trait_c)
+    d$Covariate_nb <- rowSums(nb_covariate, na.rm = TRUE)
+    d$Covariate_own <- ifelse(is.na(d$Covariate_c), 0, d$Covariate_c)
   }
 
   d$Neighbour_count <- rowSums(!is.na(d[nm]))

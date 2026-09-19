@@ -758,24 +758,24 @@ met_heritability_table <- function(result) {
   )
 }
 
-#' Fixed-effect terms contributed by the competition adjustment trait.
+#' Fixed-effect terms contributed by the covariate.
 #'
 #' The neighbour term is the adjustment itself: it asks how much of a plot's
 #' yield is explained by how large its neighbours were. The focal plot's own
 #' value is optional and off by default, because it absorbs genetic variation
-#' in the trait and so removes part of the direct effect being estimated.
+#' in the covariate and so removes part of the direct effect being estimated.
 #'
-#' @param d prepared data carrying `Trait_nb` when a trait was supplied
-#' @param adjust_own include the focal plot's own centred trait value
+#' @param d prepared data carrying `Covariate_nb` when a covariate was supplied
+#' @param adjust_own include the focal plot's own centred covariate value
 #' @noRd
-trait_fixed_terms <- function(d, adjust_own = FALSE) {
+covariate_fixed_terms <- function(d, adjust_own = FALSE) {
   out <- character(0)
-  if ("Trait_nb" %in% names(d)) out <- c(out, "Trait_nb")
-  if (isTRUE(adjust_own) && "Trait_own" %in% names(d)) out <- c(out, "Trait_own")
+  if ("Covariate_nb" %in% names(d)) out <- c(out, "Covariate_nb")
+  if (isTRUE(adjust_own) && "Covariate_own" %in% names(d)) out <- c(out, "Covariate_own")
   out
 }
 
-#' Tidy the fixed-effect solutions, for reporting the trait slopes.
+#' Tidy the fixed-effect solutions, for reporting the covariate slopes.
 #' @noRd
 fixed_effects_table <- function(summary_object) {
   cf <- summary_object$coef.fixed
@@ -798,8 +798,97 @@ fixed_effects_table <- function(summary_object) {
 #' Readable labels for the fixed-effect rows.
 #' @noRd
 pretty_fixed_term <- function(x) {
-  x <- sub("^Trait_nb$", "Adjustment trait, neighbouring plots", x)
-  x <- sub("^Trait_own$", "Adjustment trait, own plot", x)
+  x <- sub("^Covariate_nb$", "Covariate, neighbouring plots", x)
+  x <- sub("^Covariate_own$", "Covariate, own plot", x)
   x <- sub("^Env_", "Environment ", x)
   x
+}
+
+#' Wald tests for the fixed effects.
+#'
+#' Answers the question a covariate raises: should it stay in the model? The
+#' conditional F-test with denominator degrees of freedom is preferred over the
+#' chi-square form, because the chi-square assumes the denominator degrees of
+#' freedom are infinite and is anti-conservative in a trial-sized dataset. The
+#' chi-square table is used only if the denominator calculation fails.
+#'
+#' @param fit fitted asreml object
+#' @return data frame of terms with degrees of freedom, statistic and p-value,
+#'   or NULL when no Wald table could be produced
+#' @noRd
+wald_table <- function(fit) {
+  w <- tryCatch(asreml::wald(fit, denDF = "numeric", trace = FALSE),
+                error = function(e) NULL, warning = function(w) NULL)
+
+  if (!is.null(w) && is.list(w) && !is.null(w$Wald)) {
+    tab <- as.data.frame(w$Wald)
+    out <- data.frame(
+      Term = pretty_fixed_term(rownames(tab)),
+      Df = as.numeric(tab[["Df"]]),
+      Denominator_df = round(as.numeric(tab[["denDF"]]), 1),
+      F_statistic = as.numeric(tab[["F.inc"]]),
+      P_value = as.numeric(tab[["Pr"]]),
+      stringsAsFactors = FALSE
+    )
+    out$Test <- "Conditional F"
+  } else {
+    w <- tryCatch(asreml::wald(fit, trace = FALSE), error = function(e) NULL)
+    if (is.null(w)) return(NULL)
+    tab <- as.data.frame(unclass(w))
+    stat <- grep("Wald", names(tab), value = TRUE)[1]
+    pcol <- grep("^Pr", names(tab), value = TRUE)[1]
+    if (is.na(stat) || is.na(pcol)) return(NULL)
+    out <- data.frame(
+      Term = pretty_fixed_term(rownames(tab)),
+      Df = as.numeric(tab[["Df"]]),
+      Denominator_df = NA_real_,
+      F_statistic = as.numeric(tab[[stat]]),
+      P_value = as.numeric(tab[[pcol]]),
+      stringsAsFactors = FALSE
+    )
+    out$Test <- "Wald chi-square"
+  }
+
+  out <- out[!is.na(out$P_value) | !is.na(out$F_statistic), , drop = FALSE]
+  out$Significance <- significance_stars(out$P_value)
+  out$Retain <- ifelse(is.na(out$P_value), NA_character_,
+                       ifelse(out$P_value < 0.05, "Yes", "No"))
+  rownames(out) <- NULL
+  out
+}
+
+#' Conventional significance marks for a p-value.
+#' @noRd
+significance_stars <- function(p) {
+  ifelse(is.na(p), "",
+         ifelse(p < 0.001, "***",
+                ifelse(p < 0.01, "**",
+                       ifelse(p < 0.05, "*",
+                              ifelse(p < 0.1, ".", "n.s.")))))
+}
+
+#' Refit until ASReml reports convergence.
+#'
+#' A single `asreml()` call stops at `maxit` whether or not the variance
+#' parameters have settled, and a model reported as "not converged" is not safe
+#' to quote. `update()` restarts from the current estimates, so calling it
+#' repeatedly continues the same fit rather than beginning again. The round
+#' limit exists only so that a genuinely non-convergent model cannot spin
+#' forever; reaching it is reported rather than hidden.
+#'
+#' @param fit a fitted asreml object
+#' @param max_rounds most additional `update()` calls to attempt
+#' @param progress optional function(round) for the busy indicator
+#' @return list(fit, rounds, converged)
+#' @noRd
+iterate_to_convergence <- function(fit, max_rounds = 15L, progress = NULL) {
+  rounds <- 0L
+  while (!isTRUE(fit$converge) && rounds < max_rounds) {
+    rounds <- rounds + 1L
+    if (is.function(progress)) progress(rounds)
+    nxt <- tryCatch(suppressWarnings(stats::update(fit)), error = function(e) NULL)
+    if (is.null(nxt)) break
+    fit <- nxt
+  }
+  list(fit = fit, rounds = rounds, converged = isTRUE(fit$converge))
 }

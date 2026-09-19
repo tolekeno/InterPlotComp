@@ -357,6 +357,9 @@ plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
                                      caption = NULL, show_values = TRUE) {
   m <- as.matrix(m)
   if (!nrow(m) || nrow(m) != ncol(m)) stop("A square correlation matrix is required.")
+  # The diagonal is 1 by definition and carries no information; showing it only
+  # anchors the colour scale on a value that is never in question.
+  diag(m) <- NA_real_
   long <- matrix_to_long(m, "Correlation")
   long$Row <- factor(long$Row, levels = rownames(m))
   long$Column <- factor(long$Column, levels = rownames(m))
@@ -365,7 +368,8 @@ plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
                                           fill = .data$Correlation)) +
     ggplot2::geom_tile(colour = "white", linewidth = 0.6) +
     ggplot2::scale_fill_gradientn(colours = DIVERGING, limits = c(-1, 1),
-                                  na.value = "#DEE4E0", name = "Genetic correlation",
+                                  na.value = PAL$surface,
+                                  name = "Genetic correlation",
                                   breaks = seq(-1, 1, 0.5)) +
     ggplot2::scale_y_discrete(limits = rev(rownames(m))) +
     ggplot2::coord_equal(expand = FALSE) +
@@ -379,9 +383,10 @@ plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
       legend.key.width = grid::unit(0.55, "lines"))
 
   if (show_values && nrow(m) <= 16) {
+    labelled <- long[!is.na(long$Correlation), , drop = FALSE]
     p <- p + ggplot2::geom_text(
-      ggplot2::aes(label = ifelse(is.na(.data$Correlation), "\u2013",
-                                  sprintf("%.2f", .data$Correlation)),
+      data = labelled,
+      ggplot2::aes(label = sprintf("%.2f", .data$Correlation),
                    colour = abs(.data$Correlation) > 0.6),
       size = base_size * 0.23, fontface = "bold", show.legend = FALSE) +
       ggplot2::scale_colour_manual(values = c(`TRUE` = "white", `FALSE` = PAL$ink))
