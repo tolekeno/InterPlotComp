@@ -1,3 +1,21 @@
+# InterPlotComp 3.7.3
+
+* **The residual variance is now included in the denominator of
+  `Pct_of_total`**, so the variance-components chart and the variance-parameter
+  table report shares of the total plot-level variance. The residual was
+  previously left out, which inflated every other component: in the worked
+  example the direct genetic variance read 74.9% and is in fact 38.5%, the
+  residual itself being the largest component at 48.6%.
+
+* Which parameters count as variances is now decided by ASReml's own
+  classification rather than by matching parameter names. ASReml tags each
+  parameter as a variance (`V`), a variance ratio (`G`), a covariance (`C`), a
+  correlation (`R`) or a factor-analytic loading (`L`); only the first two
+  belong in a total. Besides including the residual, this drops two further
+  errors the name test made: a positive direct-competition covariance was
+  counted as if it were a variance, and in a multi-environment fit so was every
+  factor-analytic loading. Percentages now sum to 100 in both workspaces.
+
 # InterPlotComp 3.7.2
 
 * **The variance-components chart now labels its bars with breeder-facing

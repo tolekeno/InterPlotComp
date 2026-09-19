@@ -279,7 +279,26 @@ variance_component_table <- function(fit, env_levels = NULL) {
   names(vc)[names(vc) == "bound"]     <- "Bound"
   names(vc)[names(vc) == "%ch"]       <- "Pct_change"
 
-  is_variance <- !grepl("cor$|\\.cor|!R$", vc$Component)
+  # Which parameters are variances is decided by ASReml's own classification,
+  # not by reading the names: "V" is a variance, "G" a variance ratio (the
+  # estimate taken from summary() is on the variance scale either way), "C" a
+  # covariance, "R" a correlation and "L" a factor-analytic loading. Only the
+  # first two belong in a total, and the residual variance is one of them - so
+  # these percentages are shares of the plot-level variance, the residual
+  # included. Name matching had excluded the residual and would have counted a
+  # positive covariance, neither of which is right.
+  type <- fit$vparameters.type
+  vc$Type <- if (!is.null(type) && !is.null(names(fit$vparameters))) {
+    toupper(as.character(type))[match(vc$Component, names(fit$vparameters))]
+  } else {
+    NA_character_
+  }
+  is_variance <- !is.na(vc$Type) & vc$Type %in% c("V", "G")
+  # If a future ASReml stops reporting types, fall back to the name test rather
+  # than reporting no percentages at all.
+  if (!any(is_variance)) {
+    is_variance <- !grepl("cor$|\\.cor|!fa[0-9]+$", vc$Component)
+  }
   total <- sum(vc$Estimate[is_variance & vc$Estimate > 0], na.rm = TRUE)
   vc$Pct_of_total <- ifelse(is_variance, safe_pct(vc$Estimate, total), NA_real_)
   vc$At_boundary <- vc$Bound %in% c("B", "F", "S")
@@ -289,6 +308,7 @@ variance_component_table <- function(fit, env_levels = NULL) {
   vc$Interpretation <- interpret_component(vc$Component, env_levels)
   keep <- c("Component", "Interpretation", "Estimate", "Std_error", "Z_ratio",
             "Pct_of_total", "Bound", "At_boundary", "Pct_change")
+  # `Type` is working state, not output.
   vc[, intersect(keep, names(vc)), drop = FALSE]
 }
 

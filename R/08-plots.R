@@ -289,17 +289,12 @@ plot_variance_components <- function(varcomp, base_size = 12, caption = NULL) {
     ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0, 0.16))) +
     ggplot2::labs(
       title = "Contribution of each variance component",
-      # The denominator is the sum of the positive variance parameters. It is
-      # not the total phenotypic variance: correlation parameters and the
-      # residual scale are excluded from it upstream, and now that the bars
-      # carry readable names a reader would otherwise take these for shares of
-      # the total. Say what the share is of.
       subtitle = wrap_subtitle(paste(
-        "Percentage of the summed variance parameters.",
-        "Correlations and the residual scale parameter are not included in the",
-        "total; see the variance-parameter table for every estimate."),
+        "Share of the total estimated variance, residual included.",
+        "Covariances and correlations are not variances and are excluded from",
+        "the total; see the variance-parameter table for every estimate."),
         base_size),
-      x = "Share of the summed variance parameters (%)", y = NULL,
+      x = "Share of total variance (%)", y = NULL,
       caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "y")
 }
