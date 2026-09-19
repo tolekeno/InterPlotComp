@@ -357,7 +357,7 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
     matrices = parts,
     values = values,
     variance = met_variance_table(parts),
-    varcomp = variance_component_table(fit),
+    varcomp = variance_component_table(fit, env_levels),
     fa_summary = if (spec$structure %in% c("facv", "separable", "fa")) {
       fa_variance_explained(fit, spec, effect_levels, env_levels, fa_terms)
     } else NULL,

@@ -1,3 +1,24 @@
+# InterPlotComp 3.7.2
+
+* **The variance-components chart now labels its bars with breeder-facing
+  names.** It was showing ASReml's own parameter strings - a perfectly
+  ordinary direct genetic variance appeared as `Geno+N1+and(N2)!us(2)_1:1`.
+  Every parameter each fittable structure produces is now translated, checked
+  against real ASReml output for `us(2)`, `corgh(2)`, independent effects and
+  the multi-environment factor-analytic block. An unrecognised parameter is
+  returned unchanged rather than guessed at.
+
+* The same translation replaces the `Term` column of the ASReml
+  variance-parameter table with an `Interpretation` column. The raw `Component`
+  name is kept beside it, so any number can still be traced back to the fit.
+  Multi-environment parameters are named by their environment, so
+  `...!EffectEnv_D2!var` reads as "Direct specific variance (Env02)".
+
+* The chart's subtitle now states what its percentages are a share of.
+  Correlation parameters and the residual scale are excluded from the
+  denominator upstream, so these are not shares of the total phenotypic
+  variance, and with readable bar labels that distinction matters.
+
 # InterPlotComp 3.7.1
 
 ## Figure text size

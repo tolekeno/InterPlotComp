@@ -176,13 +176,100 @@ parameter_table <- function(fit) {
   )
 }
 
+#' Breeder-facing name for one ASReml variance parameter.
+#'
+#' ASReml names a parameter after the model string that produced it, so a
+#' perfectly ordinary direct genetic variance is reported as
+#' `Geno+N1+and(N2)!us(2)_1:1`. That is the right label for tracing a number
+#' back to the fit and the wrong one for reading a figure, so the raw name is
+#' kept in `Component` and this supplies the name a breeder would use.
+#'
+#' Every rule below is matched against real ASReml output for each structure
+#' the application can fit. Anything unrecognised is returned unchanged rather
+#' than guessed at, so a new parameter shows up as itself instead of being
+#' silently mislabelled.
+#'
+#' @param component character vector of raw parameter names
+#' @param env_levels environment level names, in the order the multi-
+#'   environment effect factor was built, used to name the `D1`/`C1` levels
+#' @noRd
+interpret_component <- function(component, env_levels = NULL) {
+  env_label <- function(i) {
+    if (!is.null(env_levels) && length(env_levels) >= i) env_levels[i]
+    else sprintf("environment %d", i)
+  }
+  sentence <- function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))
+
+  one <- function(x) {
+    # -- the direct-competition covariance block --------------------------
+    if (grepl("!us[(]2[)]_", x)) {
+      idx <- sub(".*!us[(]2[)]_", "", x)
+      return(switch(idx,
+                    "1:1" = "Direct genetic variance",
+                    "2:2" = "Competitive genetic variance",
+                    "2:1" = ,
+                    "1:2" = "Direct-competition covariance",
+                    x))
+    }
+    if (grepl("!corgh[(]2[)]", x)) {
+      if (grepl("cor$", x)) return("Direct-competition correlation")
+      return(switch(sub(".*!corgh[(]2[)]_", "", x),
+                    "1" = "Direct genetic variance",
+                    "2" = "Competitive genetic variance",
+                    x))
+    }
+    # The independent structure is fitted as plain terms, so the two genetic
+    # variances arrive under their own names.
+    if (identical(x, "Geno")) return("Direct genetic variance")
+    if (identical(x, "N1"))   return("Competitive genetic variance")
+
+    # -- multi-environment factor-analytic block ---------------------------
+    m <- regmatches(x, regexec("!EffectEnv_([DC])([0-9]+)!(fa[0-9]+|var)$", x,
+                               perl = TRUE))[[1]]
+    if (length(m) == 4L) {
+      effect <- if (m[2] == "D") "Direct" else "Competitive"
+      env <- env_label(as.integer(m[3]))
+      return(if (identical(m[4], "var")) {
+        sprintf("%s specific variance (%s)", effect, env)
+      } else {
+        sprintf("%s loading on factor %s (%s)", effect, sub("^fa", "", m[4]), env)
+      })
+    }
+    # The separable structure indexes the same parameters by environment name.
+    m <- regmatches(x, regexec("!EnvDummy_([^!]+)!(fa[0-9]+|var)$", x, perl = TRUE))[[1]]
+    if (length(m) == 3L) {
+      return(if (identical(m[3], "var")) {
+        sprintf("Specific variance (%s)", m[2])
+      } else {
+        sprintf("Loading on factor %s (%s)", sub("^fa", "", m[3]), m[2])
+      })
+    }
+
+    # -- residual block ----------------------------------------------------
+    # A per-environment residual is named after its environment; a single
+    # trial's is named after the two field axes.
+    block <- sub("!.*$", "", x)
+    qual <- if (grepl("^Env_", block)) sprintf(" (%s)", sub("^Env_", "", block)) else ""
+    if (grepl("!R$", x)) return(paste0("Spatial residual variance", qual))
+    m <- regmatches(x, regexec("!([^!]+)!cor$", x, perl = TRUE))[[1]]
+    if (length(m) == 2L) return(sprintf("%s correlation%s", m[2], qual))
+
+    # -- design terms and the nugget ---------------------------------------
+    pretty <- pretty_term(block)
+    if (!identical(pretty, block)) return(paste(sentence(pretty), "variance"))
+    x
+  }
+
+  vapply(as.character(component), one, character(1), USE.NAMES = FALSE)
+}
+
 #' Publication-ready variance-component table.
 #'
 #' Adds the proportion of total variance contributed by each component, which
 #' is what breeders normally want to read off, and flags components sitting at
 #' a boundary because those invalidate the usual standard errors.
 #' @noRd
-variance_component_table <- function(fit) {
+variance_component_table <- function(fit, env_levels = NULL) {
   vc <- as.data.frame(summary(fit)$varcomp)
   vc$Component <- rownames(vc)
   rownames(vc) <- NULL
@@ -197,11 +284,11 @@ variance_component_table <- function(fit) {
   vc$Pct_of_total <- ifelse(is_variance, safe_pct(vc$Estimate, total), NA_real_)
   vc$At_boundary <- vc$Bound %in% c("B", "F", "S")
 
-  # Internal factor names are replaced with breeder-facing wording; the raw
+  # Internal parameter names are replaced with breeder-facing wording; the raw
   # ASReml label is kept alongside so the output can still be traced back.
-  vc$Term <- pretty_term(sub("!.*$", "", vc$Component))
-  keep <- c("Component", "Term", "Estimate", "Std_error", "Z_ratio", "Pct_of_total",
-            "Bound", "At_boundary", "Pct_change")
+  vc$Interpretation <- interpret_component(vc$Component, env_levels)
+  keep <- c("Component", "Interpretation", "Estimate", "Std_error", "Z_ratio",
+            "Pct_of_total", "Bound", "At_boundary", "Pct_change")
   vc[, intersect(keep, names(vc)), drop = FALSE]
 }
 

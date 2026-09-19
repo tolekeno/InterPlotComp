@@ -277,17 +277,30 @@ plot_variance_components <- function(varcomp, base_size = 12, caption = NULL) {
   d <- varcomp[is.finite(varcomp$Pct_of_total) & varcomp$Pct_of_total > 0, , drop = FALSE]
   if (!nrow(d)) stop("No positive variance components to plot.")
   d <- d[order(d$Pct_of_total), ]
-  d$Component <- factor(d$Component, levels = d$Component)
+  # Axis labels are the breeder-facing names, not the ASReml parameter strings
+  # that produced them; the raw names remain in the variance-parameter table.
+  d$Label <- if ("Interpretation" %in% names(d)) d$Interpretation else d$Component
+  d$Label <- factor(d$Label, levels = unique(d$Label))
 
-  ggplot2::ggplot(d, ggplot2::aes(y = .data$Component, x = .data$Pct_of_total)) +
+  ggplot2::ggplot(d, ggplot2::aes(y = .data$Label, x = .data$Pct_of_total)) +
     ggplot2::geom_col(fill = PAL$primary, width = 0.7) +
     ggplot2::geom_text(ggplot2::aes(label = sprintf("%.1f%%", .data$Pct_of_total)),
                        hjust = -0.15, size = base_size * 0.24, colour = PAL$body) +
     ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0, 0.16))) +
-    ggplot2::labs(title = "Contribution of each variance component",
-                  subtitle = "Percentage of the total estimated variance",
-                  x = "Share of total variance (%)", y = NULL,
-                  caption = wrap_caption(caption, base_size)) +
+    ggplot2::labs(
+      title = "Contribution of each variance component",
+      # The denominator is the sum of the positive variance parameters. It is
+      # not the total phenotypic variance: correlation parameters and the
+      # residual scale are excluded from it upstream, and now that the bars
+      # carry readable names a reader would otherwise take these for shares of
+      # the total. Say what the share is of.
+      subtitle = wrap_subtitle(paste(
+        "Percentage of the summed variance parameters.",
+        "Correlations and the residual scale parameter are not included in the",
+        "total; see the variance-parameter table for every estimate."),
+        base_size),
+      x = "Share of the summed variance parameters (%)", y = NULL,
+      caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "y")
 }
 
