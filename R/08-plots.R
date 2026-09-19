@@ -15,9 +15,23 @@ model_caption <- function(result, extra = NULL) {
 }
 
 #' Wrap long captions so they do not run off the canvas.
+#'
+#' The measure follows the type size, because the type size follows the canvas
+#' width (see `figure_base_size()`). A fixed character count wraps correctly at
+#' one width only: at 110 characters a caption set for an 18 cm figure runs
+#' straight off a 9 cm single-column one. The references below are measured
+#' from the rendered output at the 14 pt base size on an 18 cm canvas: a
+#' caption at 0.82 of the base fits about 92 characters, a subtitle at 0.92
+#' about 76. Because the base size itself grows as the square root of the
+#' width, characters-per-line works out proportional to the base size.
+#'
+#' @param x text to wrap, or NULL
+#' @param base_size the figure's base type size
+#' @param ref characters that fit at the 14 pt reference size
 #' @noRd
-wrap_caption <- function(x, width = 110) {
+wrap_caption <- function(x, base_size = 14, ref = 92) {
   if (is.null(x) || !nzchar(x)) return(NULL)
+  width <- max(28L, as.integer(round(ref * base_size / 14)))
   paste(strwrap(x, width = width), collapse = "\n")
 }
 
@@ -26,7 +40,7 @@ wrap_caption <- function(x, width = 110) {
 #' Subtitles are set larger than captions, so they need a narrower measure or
 #' they run past the right edge of the canvas.
 #' @noRd
-wrap_subtitle <- function(x, width = 88) wrap_caption(x, width)
+wrap_subtitle <- function(x, base_size = 14) wrap_caption(x, base_size, ref = 76)
 
 # ---------------------------------------------------------------------------
 # Field layout
@@ -61,13 +75,17 @@ plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
     # Faceted panels are small, so they take fewer axis labels.
     ggplot2::scale_x_continuous(breaks = scales::breaks_pretty(n = if (facet) 4 else 6)) +
     ggplot2::scale_y_reverse(breaks = scales::breaks_pretty(n = if (facet) 4 else 6)) +
-    ggplot2::labs(title = title, subtitle = wrap_subtitle(subtitle), x = "Field column",
+    ggplot2::labs(title = title, subtitle = wrap_subtitle(subtitle, base_size), x = "Field column",
                   y = "Field row", fill = fill_label %||% value,
-                  caption = wrap_caption(caption)) +
+                  caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "none") +
     ggplot2::theme(legend.position = "right",
                    legend.key.height = grid::unit(1.6, "lines"),
-                   legend.key.width = grid::unit(0.55, "lines"))
+                   legend.key.width = grid::unit(0.55, "lines"),
+                   # The guide title sits above its key. Against a right-hand
+                   # bar that puts it level with the plot title, which they
+                   # then collide with on a narrow panel.
+                   legend.box.margin = ggplot2::margin(t = 8))
 
   p <- p + if (diverging) {
     ggplot2::scale_fill_gradientn(colours = DIVERGING, limits = c(-limit, limit),
@@ -128,10 +146,10 @@ plot_direct_vs_competition <- function(genetic, k = 2, label_n = 12,
       subtitle = wrap_subtitle(sprintf(paste(
         "Horizontal axis: performance in the genotype's own plot.",
         "Vertical axis: its effect on neighbouring plots.",
-        "Dotted lines join genotypes of equal pure-stand value (direct + %d x competitive)."), k)),
+        "Dotted lines join genotypes of equal pure-stand value (direct + %d x competitive)."), k), base_size),
       x = "Direct effect",
       y = "Competitive effect",
-      caption = wrap_caption(caption)) +
+      caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size)
 
   if (has_pkg("ggrepel") && nrow(top)) {
@@ -202,8 +220,8 @@ plot_ranking <- function(genetic,
       title = sprintf("Top %d genotypes by %s", nrow(d), tolower(label)),
       subtitle = wrap_subtitle(if (has_se) {
         sprintf("Points are BLUPs; bars are %.0f%% intervals from the exact prediction error variance", conf * 100)
-      } else "Points are BLUPs; no exact prediction error variance was available"),
-      x = label, y = NULL, caption = wrap_caption(caption)) +
+      } else "Points are BLUPs; no exact prediction error variance was available", base_size),
+      x = label, y = NULL, caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "y")
   p
 }
@@ -248,8 +266,8 @@ plot_rank_change <- function(genetic, top_n = 25, base_size = 12, caption = NULL
     ggplot2::scale_x_discrete(expand = ggplot2::expansion(mult = c(0.08, 0.30))) +
     ggplot2::labs(
       title = "Selection decisions change once competition is modelled",
-      subtitle = wrap_subtitle("Rank on the direct effect alone compared with rank on the pure-stand value"),
-      x = NULL, y = "Rank (1 = best)", caption = wrap_caption(caption)) +
+      subtitle = wrap_subtitle("Rank on the direct effect alone compared with rank on the pure-stand value", base_size),
+      x = NULL, y = "Rank (1 = best)", caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "y")
 }
 
@@ -269,7 +287,7 @@ plot_variance_components <- function(varcomp, base_size = 12, caption = NULL) {
     ggplot2::labs(title = "Contribution of each variance component",
                   subtitle = "Percentage of the total estimated variance",
                   x = "Share of total variance (%)", y = NULL,
-                  caption = wrap_caption(caption)) +
+                  caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "y")
 }
 
@@ -283,11 +301,17 @@ plot_residual_diagnostics <- function(res, base_size = 12, caption = NULL) {
   res <- res[is.finite(res$Residual) & is.finite(res$Fitted), , drop = FALSE]
   if (!nrow(res)) stop("No residuals are available for diagnostics.")
 
+  # Each panel of the 2 x 2 grid is half the width of the canvas, so it takes
+  # the type size that width would be given on its own - by the same square-root
+  # rule the export uses. Handing every panel the full-canvas size is what makes
+  # the two right-hand titles run off the page.
+  panel_size <- base_size * sqrt(0.5)
+
   # Titles align to the panel, not the whole plot: with plot-aligned titles the
   # left-hand panel's title runs under the right-hand panel in a 2 x 2 grid.
   panel_title <- ggplot2::theme(plot.title.position = "panel",
                                 plot.title = ggplot2::element_text(
-                                  size = base_size * 1.02, face = "bold"))
+                                  size = panel_size * 1.02, face = "bold"))
 
   p1 <- ggplot2::ggplot(res, ggplot2::aes(.data$Fitted, .data$Std_residual)) +
     ggplot2::geom_hline(yintercept = 0, colour = PAL$muted, linetype = "dashed") +
@@ -298,7 +322,7 @@ plot_residual_diagnostics <- function(res, base_size = 12, caption = NULL) {
                          colour = PAL$accent, linewidth = 0.7) +
     ggplot2::labs(title = "Residuals vs fitted",
                   x = "Fitted value", y = "Standardised residual") +
-    theme_trial(base_size) + panel_title
+    theme_trial(panel_size) + panel_title
 
   q <- data.frame(sample = sort(res$Std_residual))
   q$theoretical <- theoretical_quantiles(nrow(q))
@@ -308,19 +332,19 @@ plot_residual_diagnostics <- function(res, base_size = 12, caption = NULL) {
     ggplot2::geom_point(colour = PAL$primary, alpha = 0.55, size = 1.5) +
     ggplot2::labs(title = "Normal quantile-quantile",
                   x = "Theoretical quantile", y = "Standardised residual") +
-    theme_trial(base_size) + panel_title
+    theme_trial(panel_size) + panel_title
 
   p3 <- ggplot2::ggplot(res, ggplot2::aes(.data$Std_residual)) +
     ggplot2::geom_histogram(bins = 30, fill = PAL$primary, colour = "white",
                             linewidth = 0.2) +
     ggplot2::labs(title = "Residual distribution",
                   x = "Standardised residual", y = "Plots") +
-    theme_trial(base_size) + panel_title
+    theme_trial(panel_size) + panel_title
 
   p4 <- plot_field_map(res, "Std_residual",
                        title = "Residuals on the field plan",
                        diverging = TRUE, facet = length(unique(res$Env)) > 1,
-                       base_size = base_size, fill_label = "Std.
+                       base_size = panel_size, fill_label = "Std.
 residual") +
     panel_title
 
@@ -333,10 +357,10 @@ residual") +
     patchwork::wrap_plots(p1, p2, p3, p4, ncol = 2) +
       patchwork::plot_annotation(
         title = "Residual diagnostics",
-        caption = wrap_caption(paste(guidance, caption, sep = " ")),
+        caption = wrap_caption(paste(guidance, caption, sep = " "), base_size),
         theme = theme_trial(base_size))
   } else {
-    p1 + ggplot2::labs(caption = wrap_caption(paste(guidance, caption)))
+    p1 + ggplot2::labs(caption = wrap_caption(paste(guidance, caption), base_size))
   }
 }
 
@@ -356,12 +380,13 @@ plot_variogram <- function(v, base_size = 12, caption = NULL) {
     ggplot2::coord_equal(expand = FALSE) +
     ggplot2::labs(
       title = "Sample variogram of the residuals",
-      subtitle = wrap_subtitle("Should rise smoothly to a plateau; ridges or a continuing rise indicate unmodelled field trend"),
+      subtitle = wrap_subtitle("Should rise smoothly to a plateau; ridges or a continuing rise indicate unmodelled field trend", base_size),
       x = "Column displacement", y = "Row displacement",
-      caption = wrap_caption(caption)) +
+      caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "none") +
     ggplot2::theme(legend.position = "right",
-                   legend.key.height = grid::unit(1.6, "lines"))
+                   legend.key.height = grid::unit(1.6, "lines"),
+                   legend.box.margin = ggplot2::margin(t = 8))
 }
 
 # ---------------------------------------------------------------------------
@@ -390,14 +415,15 @@ plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
                                   breaks = seq(-1, 1, 0.5)) +
     ggplot2::scale_y_discrete(limits = rev(rownames(m))) +
     ggplot2::coord_equal(expand = FALSE) +
-    ggplot2::labs(title = title, subtitle = wrap_subtitle(subtitle), x = NULL, y = NULL,
-                  caption = wrap_caption(caption)) +
+    ggplot2::labs(title = title, subtitle = wrap_subtitle(subtitle, base_size), x = NULL, y = NULL,
+                  caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "none") +
     ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
       legend.position = "right",
       legend.key.height = grid::unit(1.8, "lines"),
-      legend.key.width = grid::unit(0.55, "lines"))
+      legend.key.width = grid::unit(0.55, "lines"),
+      legend.box.margin = ggplot2::margin(t = 8))
 
   if (show_values && nrow(m) <= 16) {
     labelled <- long[!is.na(long$Correlation), , drop = FALSE]
@@ -434,8 +460,8 @@ plot_environment_variances <- function(v, base_size = 12, caption = NULL) {
     ggplot2::scale_fill_manual(values = effect_colours(), name = NULL) +
     ggplot2::labs(
       title = "Genetic variance by environment",
-      subtitle = wrap_subtitle("Pure-stand variance combines the direct and competitive variances with their covariance"),
-      x = NULL, y = "Genetic variance", caption = wrap_caption(caption)) +
+      subtitle = wrap_subtitle("Pure-stand variance combines the direct and competitive variances with their covariance", base_size),
+      x = NULL, y = "Genetic variance", caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "y") +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
 }
@@ -492,9 +518,9 @@ plot_stability <- function(values, top_n = 12, base_size = 12, caption = NULL) {
       subtitle = wrap_subtitle(sprintf(paste(
         "Crossing lines indicate crossover genotype-by-environment interaction.",
         "The %d highest-ranked genotypes are named; the remaining %d are shown",
-        "in grey for context."), n_lead, length(keep) - n_lead)),
+        "in grey for context."), n_lead, length(keep) - n_lead), base_size),
       x = NULL, y = "Pure-stand genetic effect",
-      caption = wrap_caption(caption)) +
+      caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "y") +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
 
@@ -523,8 +549,8 @@ plot_fa_summary <- function(fa, base_size = 12, caption = NULL) {
     ggplot2::scale_y_continuous(limits = c(0, 100)) +
     ggplot2::labs(
       title = "Genetic variance explained by the factor-analytic factors",
-      subtitle = wrap_subtitle("Environments below the dotted line behave idiosyncratically and pool poorly with the rest"),
-      x = NULL, y = "Variance explained (%)", caption = wrap_caption(caption)) +
+      subtitle = wrap_subtitle("Environments below the dotted line behave idiosyncratically and pool poorly with the rest", base_size),
+      x = NULL, y = "Variance explained (%)", caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "y") +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
 }
@@ -545,8 +571,8 @@ plot_met_scatter <- function(values, k = 2, base_size = 12, caption = NULL) {
     ggplot2::facet_wrap(~ Environment) +
     ggplot2::labs(
       title = "Direct and competitive effects within each environment",
-      subtitle = wrap_subtitle(sprintf("Pure-stand value is direct + %d x competitive", k)),
+      subtitle = wrap_subtitle(sprintf("Pure-stand value is direct + %d x competitive", k), base_size),
       x = "Direct effect", y = "Competitive effect",
-      caption = wrap_caption(caption)) +
+      caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size)
 }

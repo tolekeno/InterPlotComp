@@ -28,12 +28,41 @@ FIGURE_PRESETS <- c(
   "Slide / poster (25 cm)" = "25"
 )
 
+#' Base text size for a figure of a given width.
+#'
+#' Type scales with the canvas, so a poster and a single-column figure both
+#' come out proportionate rather than the screen sizes stretched or squashed.
+#' Two things set the numbers.
+#'
+#' The reference is 14 pt at the 18 cm double-column width. With the secondary
+#' ratios in [theme_trial()] that puts axis tick labels near 12 pt and the
+#' caption near 11 pt - readable when the figure is placed at full size, and
+#' still readable after the shrink a figure usually takes on its way into a
+#' manuscript or a slide.
+#'
+#' The growth is sub-linear - the square root of the width ratio - because a
+#' figure is *printed* at the width it is exported at. Type on a 9 cm
+#' single-column figure has to hold an absolute size on the page, so scaling it
+#' in proportion to the canvas would leave it unreadable; scaling a 25 cm
+#' poster in proportion would leave it absurd. The square root keeps every
+#' preset inside a 10-17 pt band while still growing with the canvas, and the
+#' clamp catches anything outside the presets.
+#'
+#' @param width_cm finished figure width in centimetres
+#' @noRd
+figure_base_size <- function(width_cm) {
+  max(10, min(22, 14 * sqrt(width_cm / 18)))
+}
+
+# Screen resolution assumed for the preview device. The preview is then just
+# an export at whatever width the browser has given it, so its proportions
+# match the downloaded file rather than being a separately tuned picture.
+PREVIEW_RES       <- 110
+PREVIEW_BASE_SIZE <- 14    # fallback before the browser reports a width
+
 #' Save a ggplot to file at a chosen size and resolution.
 #'
-#' Text is scaled with the canvas: `base_size` is derived from the requested
-#' width so that a 25 cm poster figure and a 9 cm column figure both come out
-#' with proportionate, legible type rather than the screen sizes stretched or
-#' squashed.
+#' @seealso `figure_base_size()` for how the text size is chosen.
 #'
 #' @param plot_fun function returning a ggplot, taking a `base_size` argument
 #' @param file destination path
@@ -45,11 +74,7 @@ FIGURE_PRESETS <- c(
 save_figure <- function(plot_fun, file, format = "png", width = 18, height = 12,
                         units = "cm", dpi = 600) {
   width_cm <- if (units == "in") width * 2.54 else width
-  # 11 pt at 18 cm is a comfortable reference; scale linearly from there and
-  # clamp so very small or very large canvases stay readable.
-  base_size <- max(7, min(20, 11 * width_cm / 18))
-
-  p <- plot_fun(base_size)
+  p <- plot_fun(figure_base_size(width_cm))
   if (!inherits(p, c("ggplot", "patchwork"))) {
     stop("Only ggplot figures can be exported.", call. = FALSE)
   }
@@ -102,7 +127,7 @@ save_figure_pdf_report <- function(plot_funs, file, width = 18, height = 14,
   device(file, width = to_inches(width), height = to_inches(height),
          onefile = TRUE)
   on.exit(grDevices::dev.off(), add = TRUE)
-  base_size <- max(7, min(20, 11 * (if (units == "in") width * 2.54 else width) / 18))
+  base_size <- figure_base_size(if (units == "in") width * 2.54 else width)
   for (f in plot_funs) {
     p <- try(f(base_size), silent = TRUE)
     if (!inherits(p, "try-error")) print(p)
@@ -177,9 +202,24 @@ figure_server <- function(id, plot_fun, filename_base = "figure",
   shiny::moduleServer(id, function(input, output, session) {
     use_plotly <- interactive && has_pkg("plotly")
 
-    build <- function(base_size = 12) plot_fun(base_size)
+    build <- function(base_size = PREVIEW_BASE_SIZE) plot_fun(base_size)
 
-    output$static <- shiny::renderPlot({ build(12) }, res = 110)
+    # The browser reports the plot area's pixel width, which at the preview
+    # device resolution is a physical width in centimetres. Feeding that to the
+    # same rule the export uses makes the preview an export at its own width:
+    # type is in the same proportion to the canvas on screen as in the file.
+    # Capped at the default 18 cm export size. A browser window is wider and
+    # much shorter than any figure anyone exports, and letting a 24 cm-wide
+    # preview take 24 cm-wide type would spend the whole card height on the
+    # title, legend and caption and leave the panel a sliver.
+    preview_size <- function(output_id) {
+      px <- session$clientData[[paste0("output_", session$ns(output_id), "_width")]]
+      if (is.null(px) || !is.finite(px) || px <= 0) return(PREVIEW_BASE_SIZE)
+      min(figure_base_size(px / PREVIEW_RES * 2.54), PREVIEW_BASE_SIZE)
+    }
+
+    output$static <- shiny::renderPlot({ build(preview_size("static")) },
+                                       res = PREVIEW_RES)
 
     if (use_plotly) {
       output$area <- shiny::renderUI({
@@ -189,11 +229,13 @@ figure_server <- function(id, plot_fun, filename_base = "figure",
           shiny::plotOutput(session$ns("static2"), height = height)
         }
       })
-      output$static2 <- shiny::renderPlot({ build(12) }, res = 110)
+      output$static2 <- shiny::renderPlot({ build(preview_size("static2")) },
+                                          res = PREVIEW_RES)
       output$dynamic <- plotly::renderPlotly({
         # Titles are dropped from the interactive view: plotly renders ggplot
         # subtitles and captions poorly, and they are already on screen.
-        p <- build(12) + ggplot2::labs(title = NULL, subtitle = NULL, caption = NULL)
+        p <- build(preview_size("dynamic")) +
+          ggplot2::labs(title = NULL, subtitle = NULL, caption = NULL)
         plotly::ggplotly(p) |> plotly::config(displaylogo = FALSE)
       })
     }

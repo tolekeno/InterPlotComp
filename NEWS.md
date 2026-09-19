@@ -1,3 +1,35 @@
+# InterPlotComp 3.7.1
+
+## Figure text size
+
+* **Exported figures were set too small.** The reference size is raised from
+  11 pt to 14 pt at the 18 cm double-column width, which puts axis tick labels
+  near 12 pt and captions near 11 pt - readable at full size, and still
+  readable after the shrink a figure takes on its way into a manuscript or a
+  slide. The secondary ratios in the shared theme were lifted with it, so tick
+  labels, legends and captions no longer fall so far below the base size.
+
+* **The size now grows with the square root of the canvas width, not linearly.**
+  A figure is printed at the width it is exported at, so its type has to hold
+  an absolute size on the page. Under the old linear rule a 9 cm single-column
+  figure was given 7 pt type; every preset now sits in a 10-17 pt band.
+
+* **Captions and subtitles wrap to the canvas, not to a fixed character
+  count.** A fixed count is correct at one width only: at 110 characters a
+  caption set for an 18 cm figure ran straight off a 9 cm one. The measure now
+  follows the type size.
+
+* Each panel of the 2 x 2 residual-diagnostics grid is half the width of the
+  canvas and now takes the type size that width earns, instead of the
+  full-canvas size that pushed two of its titles off the page.
+
+* Guide titles sit above their key rather than beside it, so a horizontal
+  colour bar plus a long title is no longer wider than a single-column canvas.
+
+* **The on-screen preview is now an export at its own width**, computed with
+  the same rule, so what is on screen is in the same proportion as the file
+  that downloads. It was previously a fixed 12 pt at an unrelated resolution.
+
 # InterPlotComp 3.7.0
 
 ## Interface

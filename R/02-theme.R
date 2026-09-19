@@ -26,7 +26,7 @@
 # cannot drift, with a literal fallback for a source checkout.
 APP_VERSION <- tryCatch(
   as.character(utils::packageVersion("InterPlotComp")),
-  error = function(e) "3.7.0"
+  error = function(e) "3.7.1"
 )
 
 # ---------------------------------------------------------------------------
@@ -690,19 +690,19 @@ theme_trial <- function(base_size = 12, grid = "xy") {
       plot.title       = ggplot2::element_text(face = "bold", size = base_size * 1.22,
                                                colour = PAL$ink, hjust = 0,
                                                margin = ggplot2::margin(b = 3)),
-      plot.subtitle    = ggplot2::element_text(size = base_size * 0.9, colour = PAL$muted,
+      plot.subtitle    = ggplot2::element_text(size = base_size * 0.92, colour = PAL$muted,
                                                hjust = 0, lineheight = 1.2,
                                                margin = ggplot2::margin(b = 10)),
-      plot.caption     = ggplot2::element_text(size = base_size * 0.76, colour = PAL$muted,
+      plot.caption     = ggplot2::element_text(size = base_size * 0.82, colour = PAL$muted,
                                                hjust = 0, lineheight = 1.2,
                                                margin = ggplot2::margin(t = 10)),
       plot.title.position   = "plot",
       plot.caption.position = "plot",
-      axis.title       = ggplot2::element_text(size = base_size * 0.9, colour = PAL$body,
+      axis.title       = ggplot2::element_text(size = base_size * 0.95, colour = PAL$body,
                                                face = "plain"),
       axis.title.x     = ggplot2::element_text(margin = ggplot2::margin(t = 6)),
       axis.title.y     = ggplot2::element_text(margin = ggplot2::margin(r = 6)),
-      axis.text        = ggplot2::element_text(size = base_size * 0.82, colour = PAL$muted),
+      axis.text        = ggplot2::element_text(size = base_size * 0.88, colour = PAL$muted),
       axis.ticks       = ggplot2::element_line(colour = PAL$line, linewidth = 0.3),
       axis.ticks.length = grid::unit(2.5, "pt"),
       panel.grid.minor = ggplot2::element_blank(),
@@ -712,15 +712,19 @@ theme_trial <- function(base_size = 12, grid = "xy") {
       legend.position  = "bottom",
       legend.justification = "left",
       legend.margin    = ggplot2::margin(t = 2),
-      legend.title     = ggplot2::element_text(size = base_size * 0.82,
+      # The title sits above the key, not beside it. Beside it, a horizontal
+      # colour bar plus a long title is wider than a single-column canvas and
+      # the bar is clipped at the page edge.
+      legend.title.position = "top",
+      legend.title     = ggplot2::element_text(size = base_size * 0.88,
                                                face = "bold", colour = PAL$body),
-      legend.text      = ggplot2::element_text(size = base_size * 0.8,
+      legend.text      = ggplot2::element_text(size = base_size * 0.86,
                                                colour = PAL$muted),
       # A horizontal colour bar at the bottom needs a wide, short key or its
       # break labels collide with one another.
       legend.key.height = grid::unit(0.55, "lines"),
-      legend.key.width  = grid::unit(3.2, "lines"),
-      strip.text       = ggplot2::element_text(face = "bold", size = base_size * 0.86,
+      legend.key.width  = grid::unit(2.6, "lines"),
+      strip.text       = ggplot2::element_text(face = "bold", size = base_size * 0.9,
                                                colour = PAL$ink,
                                                margin = ggplot2::margin(4, 4, 4, 4)),
       strip.background = ggplot2::element_rect(fill = PAL$surface_2, colour = NA),
