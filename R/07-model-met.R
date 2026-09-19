@@ -278,6 +278,11 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
   old_options <- asreml::asreml.options(Cinv = want_cinv)
   on.exit(do.call(asreml::asreml.options, old_options), add = TRUE)
 
+  # See fit_single_model(): the adjustment trait enters as fixed covariates,
+  # carried by the baseline model too so the likelihood-ratio test stays valid.
+  trait_terms <- trait_fixed_terms(d, opts$adjust_own_trait)
+  fixed_text <- paste(c("Yield ~ Env", trait_terms), collapse = " + ")
+
   fit_one <- function(spec, competition = TRUE) {
     f <- met_formulae(spec$design_terms, neighbour_names, n_geno, n_env,
                       spec$structure, spec$rank, spec$spatial, spec$nugget,
@@ -285,7 +290,7 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
                       row_process = spec$row_process %||% "ar1",
                       col_process = spec$col_process %||% "ar1")
     args <- list(
-      fixed = stats::as.formula("Yield ~ Env", env = globalenv()),
+      fixed = stats::as.formula(fixed_text, env = globalenv()),
       random = f$random, residual = f$residual,
       na.action = asreml::na.method(y = "include", x = "include"),
       data = d, maxit = as.integer(opts$maxit), workspace = opts$workspace,
@@ -352,12 +357,16 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
     dc_covariance_fixed = identical(spec$structure, "fa"),
     exact_se = attr(values, "exact_se") %||% FALSE,
     heritability = attr(values, "heritability"),
+    heritability_pure = attr(values, "heritability_pure"),
     comparison = comparison,
     fit_stats = fit_statistics(fit, "Fitted MET competition model"),
+    fixed_effects = fixed_effects_table(s),
+    trait_terms = trait_terms,
+    trait_name = attr(d, "trait_name"),
     log = run$log, warnings = run$warnings,
     fallback_used = !identical(spec$reason, "Requested model"),
     converged = isTRUE(fit$converge),
-    description = describe_met_model(spec, k, n_env, relationship),
+    description = describe_met_model(spec, k, n_env, relationship, trait_terms),
     relationship = relationship,
     coverage = coverage,
     residuals = residual_frame(fit, d)
@@ -433,6 +442,10 @@ extract_met_effects <- function(fit, s, env_levels, genotypes, k, parts,
       take <- out$Environment == e
       cullis_h2(pev$pev_direct[take], var_direct[[e]])
     }, numeric(1))
+    h2_pure <- vapply(env_levels, function(e) {
+      take <- out$Environment == e
+      cullis_h2(pev$pev_pure[take], var_pure[[e]])
+    }, numeric(1))
     exact <- TRUE
   } else {
     se_col <- std_error_column(cr)
@@ -442,6 +455,7 @@ extract_met_effects <- function(fit, s, env_levels, genotypes, k, parts,
     }
     out$SE_pure_stand <- NA_real_
     h2 <- stats::setNames(rep(NA_real_, length(env_levels)), env_levels)
+    h2_pure <- h2
     exact <- FALSE
   }
 
@@ -455,14 +469,23 @@ extract_met_effects <- function(fit, s, env_levels, genotypes, k, parts,
   if (!is.null(in_trial)) {
     out$Tested <- ifelse(out$Genotype %in% in_trial, "In trial", "Relative only")
   }
+  # Ranked within environment on predicted pure-stand performance. Within an
+  # environment the fitted mean is common, so this agrees with ranking on the
+  # effect; it is stated on the yield scale because that is what is selected on.
+  rank_basis <- if (all(is.na(out$Predicted_pure_stand_yield))) {
+    out$Pure_stand_effect
+  } else {
+    out$Predicted_pure_stand_yield
+  }
   out$Rank_pure_stand <- stats::ave(
-    -out$Pure_stand_effect, out$Environment,
+    -rank_basis, out$Environment,
     FUN = function(x) rank(x, ties.method = "min", na.last = "keep"))
 
   out <- out[order(out$Environment, out$Rank_pure_stand, na.last = TRUE), , drop = FALSE]
   rownames(out) <- NULL
   attr(out, "exact_se") <- exact
   attr(out, "heritability") <- h2
+  attr(out, "heritability_pure") <- h2_pure
   out
 }
 
@@ -579,7 +602,8 @@ fa_variance_explained <- function(fit, spec, effect_levels, env_levels,
 
 #' One-sentence description of the fitted MET model.
 #' @noRd
-describe_met_model <- function(spec, k, n_env, relationship = NULL) {
+describe_met_model <- function(spec, k, n_env, relationship = NULL,
+                              trait_terms = character(0)) {
   genetic <- switch(
     spec$structure,
     facv = sprintf("joint FA(%d) covariance over %d direct and %d competitive environment effects",
@@ -603,6 +627,12 @@ describe_met_model <- function(spec, k, n_env, relationship = NULL) {
     if (spec$nugget) " with a common nugget" else "",
     if (!is.null(relationship)) paste0(", ", relationship$label) else
       ", independent genotypes",
+    if (length(trait_terms)) {
+      paste0(", adjusted for ",
+             if ("Trait_own" %in% trait_terms) {
+               "the neighbouring and own-plot values of the adjustment trait"
+             } else "the neighbouring plots' adjustment trait")
+    } else "",
     sprintf("; %d competing neighbours", k)
   )
 }

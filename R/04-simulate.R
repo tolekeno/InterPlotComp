@@ -101,8 +101,18 @@ simulate_trial <- function(n_rows = 15, n_cols = 12, n_geno = 60, seed = 2026,
     surface[cbind(d$Row, d$Column)] +
     stats::rnorm(n_plot, 0, sqrt(truth$nugget_var))
 
+  # A correlated proxy trait, so the worked examples can demonstrate the
+  # competition adjustment. Plant height is generated from the same genotype
+  # competitive effects that drive the interference, which is exactly the
+  # situation the adjustment is meant for: a taller neighbour shades its
+  # neighbour, and the trait therefore explains part of the competition.
+  d$Plant_height_cm <- round(
+    200 + 60 * effects$competition[d$Genotype] * -1 +
+      12 * effects$direct[d$Genotype] +
+      stats::rnorm(n_plot, 0, 6), 1)
+
   d$Yield <- round(d$Yield, 3)
-  d <- d[, c("Row", "Column", "Rep", "Block", "Genotype", "Yield")]
+  d <- d[, c("Row", "Column", "Rep", "Block", "Genotype", "Plant_height_cm", "Yield")]
   rownames(d) <- NULL
   attr(d, "effects") <- effects
   d
@@ -152,11 +162,13 @@ sample_met_trial <- function() {
   extra <- sprintf("MZ%03d", 41:52)
   set.seed(4242)
 
+  # Neutral environment labels: a worked example should not imply that these
+  # are real site results.
   spec <- list(
-    list(env = "Kiboko_2025",  rows = 12, cols = 10, geno = c(core, extra[1:8]),  shift =  0.00, seed = 101),
-    list(env = "Kakamega_2025", rows = 10, cols = 10, geno = core,                shift =  0.85, seed = 102),
-    list(env = "Embu_2025",     rows = 14, cols =  8, geno = c(core, extra[9:12]), shift = -0.60, seed = 103),
-    list(env = "Bomet_2026",    rows = 12, cols =  9, geno = core,                shift =  0.30, seed = 104)
+    list(env = "Env04", rows = 12, cols = 10, geno = c(core, extra[1:8]),   shift =  0.00, seed = 101),
+    list(env = "Env03", rows = 10, cols = 10, geno = core,                  shift =  0.85, seed = 102),
+    list(env = "Env02", rows = 14, cols =  8, geno = c(core, extra[9:12]),  shift = -0.60, seed = 103),
+    list(env = "Env01", rows = 12, cols =  9, geno = core,                  shift =  0.30, seed = 104)
   )
 
   # A shared genetic core with environment-specific deviation produces genuine
@@ -181,7 +193,7 @@ sample_met_trial <- function() {
 
   set.seed(9)
   d$Yield[sample(nrow(d), 6)] <- NA
-  d <- d[!(d$Environment == "Embu_2025" & d$Row == 5 & d$Column == 4), , drop = FALSE]
+  d <- d[!(d$Environment == "Env02" & d$Row == 5 & d$Column == 4), , drop = FALSE]
   names(d)[names(d) == "Yield"] <- "Yield_t_ha"
   rownames(d) <- NULL
   d

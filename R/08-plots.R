@@ -142,12 +142,22 @@ plot_direct_vs_competition <- function(genetic, k = 2, label_n = 12,
 #' the interval around a pure-stand value is correct rather than the far too
 #' wide one obtained by adding the direct and competitive standard errors.
 #' @noRd
-plot_ranking <- function(genetic, effect = c("Pure_stand_effect", "Direct_effect"),
+plot_ranking <- function(genetic,
+                         effect = c("Predicted_pure_stand_yield",
+                                    "Pure_stand_effect", "Direct_effect"),
                          se_col = NULL, top_n = 30, base_size = 12,
                          caption = NULL, conf = 0.95) {
   effect <- match.arg(effect)
+  # Predicted pure-stand yield is the default: it is what selection acts on,
+  # and it carries the same standard error as the effect it is built from,
+  # the trial mean being a common constant.
+  if (identical(effect, "Predicted_pure_stand_yield") &&
+      !effect %in% names(genetic)) {
+    effect <- "Pure_stand_effect"
+  }
   if (is.null(se_col)) {
-    se_col <- c(Pure_stand_effect = "SE_pure_stand",
+    se_col <- c(Predicted_pure_stand_yield = "SE_pure_stand",
+                Pure_stand_effect = "SE_pure_stand",
                 Direct_effect = "SE_direct")[[effect]]
   }
   d <- genetic[!is.na(genetic[[effect]]), , drop = FALSE]
@@ -157,7 +167,10 @@ plot_ranking <- function(genetic, effect = c("Pure_stand_effect", "Direct_effect
   has_se <- !is.null(se_col) && se_col %in% names(d) && any(is.finite(d[[se_col]]))
   z <- stats::qnorm(1 - (1 - conf) / 2)
 
-  label <- if (effect == "Pure_stand_effect") "Pure-stand genetic effect" else "Direct genetic effect"
+  label <- switch(effect,
+                  Predicted_pure_stand_yield = "Predicted pure-stand performance",
+                  Pure_stand_effect = "Pure-stand genetic effect",
+                  Direct_effect = "Direct genetic effect")
 
   p <- ggplot2::ggplot(d, ggplot2::aes(y = .data$Genotype, x = .data[[effect]]))
   if (has_se) {
@@ -168,8 +181,11 @@ plot_ranking <- function(genetic, effect = c("Pure_stand_effect", "Direct_effect
       colour = PAL$muted, linewidth = 0.5)
   }
   p <- p +
-    ggplot2::geom_vline(xintercept = 0, colour = PAL$muted, linetype = "dashed",
-                        linewidth = 0.4) +
+    ggplot2::geom_vline(
+      xintercept = if (identical(effect, "Predicted_pure_stand_yield")) {
+        mean(genetic[[effect]], na.rm = TRUE)
+      } else 0,
+      colour = PAL$muted, linetype = "dashed", linewidth = 0.4) +
     ggplot2::geom_point(ggplot2::aes(colour = .data[[effect]]), size = 2.4) +
     ggplot2::scale_colour_gradientn(colours = DIVERGING, guide = "none") +
     ggplot2::labs(

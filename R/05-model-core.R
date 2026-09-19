@@ -669,3 +669,137 @@ ASREML WARNINGS
   }
   invisible(NULL)
 }
+
+#' Heritability and accuracy summary for a single trial.
+#'
+#' The "Variance & heritability" panel previously showed variance components
+#' only, leaving the heritabilities buried in the header strip. They are the
+#' numbers a breeder acts on, so they get their own table, together with the
+#' mean reliability and accuracy that determine how dependable a selection is.
+#'
+#' @param result the list returned by `fit_single_model()`
+#' @noRd
+single_heritability_table <- function(result) {
+  g <- result$genetic
+  h2 <- result$heritability
+  narrow <- !is.null(result$relationship)
+  basis <- if (narrow) "narrow-sense (additive)" else "entry-mean"
+
+  mean_rel <- function(col) {
+    if (!col %in% names(g)) return(NA_real_)
+    mean(g[[col]], na.rm = TRUE)
+  }
+
+  # Mean reliability is algebraically the same quantity as Cullis
+  # heritability, 1 - mean(PEV)/sigma_g^2, so reporting both would only look
+  # like corroboration. What adds information is how the reliabilities are
+  # spread: the accuracy and how many genotypes clear a usable threshold.
+  n_above <- function(col, cut = 0.5) {
+    if (!col %in% names(g)) return(NA_integer_)
+    sum(g[[col]] >= cut, na.rm = TRUE)
+  }
+  n_geno <- nrow(g)
+
+  out <- data.frame(
+    Effect = c("Direct", "Pure stand"),
+    Genetic_variance = c(result$components$direct, result$components$pure),
+    Heritability = c(h2[["direct"]], h2[["pure"]]),
+    stringsAsFactors = FALSE
+  )
+  out$Accuracy <- sqrt(pmax(out$Heritability, 0))
+  out$Genotypes_reliability_over_0.5 <- c(n_above("Reliability_direct"),
+                                          n_above("Reliability_pure_stand"))
+  out$Genotypes_total <- n_geno
+  out$Basis <- c(basis, basis)
+  out$Interpretation <- c(
+    "Repeatability of the genotype's own-plot performance",
+    sprintf("Repeatability of the value expressed in a pure stand (D + %d C)",
+            result$k)
+  )
+  out
+}
+
+#' Heritability and accuracy by environment for a MET.
+#' @noRd
+met_heritability_table <- function(result) {
+  env <- result$environments
+  v <- result$variance
+  h2 <- result$heritability
+  h2p <- result$heritability_pure
+  vals <- result$values
+
+  mean_by_env <- function(col) {
+    if (!col %in% names(vals)) return(rep(NA_real_, length(env)))
+    vapply(env, function(e) {
+      mean(vals[[col]][vals$Environment == e], na.rm = TRUE)
+    }, numeric(1))
+  }
+
+  n_above <- function(col, cut = 0.5) {
+    if (!col %in% names(vals)) return(rep(NA_integer_, length(env)))
+    vapply(env, function(e) {
+      sum(vals[[col]][vals$Environment == e] >= cut, na.rm = TRUE)
+    }, integer(1))
+  }
+
+  h2d <- as.numeric(h2[env])
+  h2ps <- if (is.null(h2p)) rep(NA_real_, length(env)) else as.numeric(h2p[env])
+
+  data.frame(
+    Environment = env,
+    Direct_variance = v$Direct_variance,
+    Heritability_direct = h2d,
+    Accuracy_direct = sqrt(pmax(h2d, 0)),
+    Pure_stand_variance = v$Pure_stand_variance,
+    Heritability_pure_stand = h2ps,
+    Accuracy_pure_stand = sqrt(pmax(h2ps, 0)),
+    Genotypes_reliability_over_0.5 = n_above("Reliability_pure_stand"),
+    stringsAsFactors = FALSE, row.names = NULL
+  )
+}
+
+#' Fixed-effect terms contributed by the competition adjustment trait.
+#'
+#' The neighbour term is the adjustment itself: it asks how much of a plot's
+#' yield is explained by how large its neighbours were. The focal plot's own
+#' value is optional and off by default, because it absorbs genetic variation
+#' in the trait and so removes part of the direct effect being estimated.
+#'
+#' @param d prepared data carrying `Trait_nb` when a trait was supplied
+#' @param adjust_own include the focal plot's own centred trait value
+#' @noRd
+trait_fixed_terms <- function(d, adjust_own = FALSE) {
+  out <- character(0)
+  if ("Trait_nb" %in% names(d)) out <- c(out, "Trait_nb")
+  if (isTRUE(adjust_own) && "Trait_own" %in% names(d)) out <- c(out, "Trait_own")
+  out
+}
+
+#' Tidy the fixed-effect solutions, for reporting the trait slopes.
+#' @noRd
+fixed_effects_table <- function(summary_object) {
+  cf <- summary_object$coef.fixed
+  if (is.null(cf)) return(NULL)
+  cf <- as.data.frame(cf)
+  sol <- solution_column(cf)
+  se <- std_error_column(cf)
+  out <- data.frame(
+    Term = pretty_fixed_term(rownames(cf)),
+    Estimate = as.numeric(cf[[sol]]),
+    stringsAsFactors = FALSE
+  )
+  if (!is.na(se)) {
+    out$Std_error <- as.numeric(cf[[se]])
+    out$Z_ratio <- out$Estimate / out$Std_error
+  }
+  out[!is.na(out$Estimate), , drop = FALSE]
+}
+
+#' Readable labels for the fixed-effect rows.
+#' @noRd
+pretty_fixed_term <- function(x) {
+  x <- sub("^Trait_nb$", "Adjustment trait, neighbouring plots", x)
+  x <- sub("^Trait_own$", "Adjustment trait, own plot", x)
+  x <- sub("^Env_", "Environment ", x)
+  x
+}

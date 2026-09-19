@@ -208,6 +208,13 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
   old_options <- asreml::asreml.options(Cinv = want_cinv)
   on.exit(do.call(asreml::asreml.options, old_options), add = TRUE)
 
+  # A competition adjustment trait enters as fixed covariates. Both the
+  # competition model and its no-competition baseline carry them, so the
+  # likelihood-ratio test still compares two models with identical fixed
+  # effects and tests only the genetic competitive effects.
+  trait_terms <- trait_fixed_terms(d, opts$adjust_own_trait)
+  fixed_text <- paste(c("Yield ~ 1", trait_terms), collapse = " + ")
+
   fit_one <- function(spec, competition = TRUE) {
     f <- single_formulae(spec$design_terms, neighbour_names, n_geno,
                          spec$structure, spec$spatial, spec$nugget, competition,
@@ -215,7 +222,7 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
                          row_process = spec$row_process %||% "ar1",
                          col_process = spec$col_process %||% "ar1")
     args <- list(
-      fixed = stats::as.formula("Yield ~ 1", env = globalenv()),
+      fixed = stats::as.formula(fixed_text, env = globalenv()),
       random = f$random, residual = f$residual,
       na.action = asreml::na.method(y = "include", x = "include"),
       data = d, maxit = as.integer(opts$maxit), workspace = opts$workspace,
@@ -294,11 +301,14 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
     exact_se = attr(genetic, "exact_se"),
     comparison = comparison,
     fit_stats = fit_statistics(fit, "Fitted competition model"),
+    fixed_effects = fixed_effects_table(s),
+    trait_terms = trait_terms,
+    trait_name = attr(d, "trait_name"),
     log = run$log,
     warnings = run$warnings,
     fallback_used = !identical(spec$reason, "Requested model"),
     converged = isTRUE(fit$converge),
-    description = describe_single_model(spec, k, relationship),
+    description = describe_single_model(spec, k, relationship, trait_terms),
     residuals = residual_frame(fit, d)
   )
 }
@@ -369,8 +379,17 @@ extract_single_effects <- function(fit, s, genotypes, k, var_direct, var_pure,
   intercept <- extract_intercept(fit, s)
   out$Pure_stand_effect <- out$Direct_effect + k * out$Competition_effect
   out$Predicted_pure_stand_yield <- intercept + out$Pure_stand_effect
+  # Ranked on predicted pure-stand performance, the quantity a breeder selects
+  # on, rather than on the effect alone. The two orderings coincide for a
+  # single trial, where the intercept is common, but the yield scale is what
+  # the ranking should be seen to be built from.
+  rank_basis <- if (all(is.na(out$Predicted_pure_stand_yield))) {
+    out$Pure_stand_effect
+  } else {
+    out$Predicted_pure_stand_yield
+  }
   out$Rank_direct <- rank(-out$Direct_effect, ties.method = "min", na.last = "keep")
-  out$Rank_pure_stand <- rank(-out$Pure_stand_effect, ties.method = "min", na.last = "keep")
+  out$Rank_pure_stand <- rank(-rank_basis, ties.method = "min", na.last = "keep")
   out$Rank_change <- out$Rank_direct - out$Rank_pure_stand
   out$Competitor_type <- classify_competitor(out$Competition_effect)
   if (!is.null(in_trial)) {
@@ -486,7 +505,8 @@ single_variance_table <- function(fit, parts, spec, k) {
 
 #' One-sentence description of what was actually fitted.
 #' @noRd
-describe_single_model <- function(spec, k, relationship = NULL) {
+describe_single_model <- function(spec, k, relationship = NULL,
+                                 trait_terms = character(0)) {
   genetic <- switch(
     spec$structure,
     us    = "unstructured us(2) direct-competition covariance",
@@ -505,6 +525,12 @@ describe_single_model <- function(spec, k, relationship = NULL) {
     if (spec$nugget) " with nugget" else "",
     if (!is.null(relationship)) paste0(", ", relationship$label) else
       ", independent genotypes",
+    if (length(trait_terms)) {
+      paste0(", adjusted for ",
+             if ("Trait_own" %in% trait_terms) {
+               "the neighbouring and own-plot values of the adjustment trait"
+             } else "the neighbouring plots' adjustment trait")
+    } else "",
     sprintf("; %d competing neighbours", k)
   )
 }

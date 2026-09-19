@@ -1,3 +1,23 @@
+# InterPlotComp 3.5.0
+
+* Optional **competition adjustment trait**. A measured proxy for interference
+  (plant height, canopy width, root vigour) can be named in the column mapping;
+  the neighbouring plots' centred values are fitted as a fixed covariate, so
+  competition attributable to the trait is removed before the genetic
+  competitive effects are estimated. The focal plot's own value is available
+  too, off by default. The default remains a single-trait model.
+* The **Variance & heritability** tab now shows heritabilities: Cullis
+  generalised heritability, accuracy, and how many genotypes clear a reliability
+  of 0.5, for the direct and the pure-stand value, per environment in the MET.
+* Genotypes are ranked on **predicted pure-stand performance** rather than on
+  the pure-stand effect, and the ranking figure is drawn on the yield scale.
+* With a relationship matrix, evaluated genotypes and relatives predicted from
+  the matrix are reported in **separate tables**, with separate downloads and
+  workbook sheets.
+* The simulated MET environments are named Env01 to Env04, and both worked
+  examples carry a simulated plant-height column so the trait adjustment can be
+  tried immediately.
+
 # InterPlotComp 3.4.0
 
 * New MET genetic structure, *Separate fa() per effect*, fitting an ordinary

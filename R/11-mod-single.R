@@ -135,16 +135,26 @@ single_ui <- function(id) {
         shiny::uiOutput(ns("result_status")),
         shiny::uiOutput(ns("metrics")),
         panel_card(
-          "Direct, competitive and pure-stand genetic values",
-          table_download_ui(ns("dl_genetic"), "Download genetic values"),
+          "Evaluated genotypes",
+          table_download_ui(ns("dl_genetic"), "Download evaluated genotypes"),
           DT::DTOutput(ns("genetic")),
           note(shiny::strong("Pure-stand value"), " is the direct effect plus ",
                "k times the competitive effect: what the genotype would express ",
-               "if every neighbour were itself. ",
+               "if every neighbour were itself. Genotypes are ranked on ",
+               shiny::strong("predicted pure-stand performance"), ". ",
                shiny::strong("Reliability"), " is the squared correlation between ",
                "the predicted and true genetic value; above about 0.5 the ",
                "prediction is dependable enough to select on."),
           icon_name = "award"
+        ),
+        shiny::conditionalPanel(
+          condition = "output.has_inferred === true", ns = ns,
+          panel_card(
+            "Relatives predicted from the relationship matrix",
+            table_download_ui(ns("dl_inferred"), "Download predicted relatives"),
+            DT::DTOutput(ns("inferred")),
+            note("Genotypes with plots in this trial are shown above. Individuals that appear only in the relationship matrix - parents and other relatives with no plot - are predicted from their relatives and are listed separately below, because their values rest on pedigree or marker information rather than on their own performance."),
+            icon_name = "diagram-3")
         )
       ),
 
@@ -176,6 +186,19 @@ single_ui <- function(id) {
                      DT::DTOutput(ns("variance")), icon_name = "calculator",
                      full_screen = FALSE)
         ),
+        shiny::uiOutput(ns("fixed_card")),
+        panel_card("Heritability and accuracy",
+                   table_download_ui(ns("dl_h2"), "Download heritability"),
+                   DT::DTOutput(ns("heritability")),
+                   note("Cullis generalised heritability, computed from the ",
+                        "prediction error variances rather than from a balanced ",
+                        "-design formula, so it is valid for unequal replication. ",
+                        shiny::strong("Accuracy"), " is the square root of ",
+                        "reliability, the correlation between the predicted and ",
+                        "true genetic value. The pure-stand row is the one that ",
+                        "matters for selection, and it is usually the lower of ",
+                        "the two."),
+                   icon_name = "percent", full_screen = FALSE),
         panel_card("All ASReml variance parameters", DT::DTOutput(ns("varcomp")),
                    icon_name = "list-columns",
                    full_screen = FALSE),
@@ -256,6 +279,24 @@ single_server <- function(id) {
           shiny::column(6, select_input(ns("block_col"), "Block (optional)", optional,
                                         guess_column(nms, c("block", "iblk", "incomplete"), "")))
         ),
+        select_input(ns("trait_col"),
+                     "Competition adjustment trait (optional)", optional,
+                     guess_column(nms, c("height", "^ph$", "plant.?height",
+                                         "canopy", "vigour", "vigor", "biomass"), "")),
+        shiny::conditionalPanel(
+          sprintf("input['%s'] != ''", ns("trait_col")),
+          switch_input(ns("adjust_own_trait"),
+                       "Also adjust for the plot's own value", FALSE,
+                       help = paste("Off by default: the focal plot's own trait",
+                                    "value absorbs genetic variation in that",
+                                    "trait and so removes part of the direct",
+                                    "effect being estimated."))
+        ),
+        note("A measured proxy for the physical cause of interference \u2014 plant ",
+             "height, canopy width, root vigour. The neighbouring plots' values ",
+             "enter as a fixed covariate, so competition attributable to the ",
+             "trait is removed before the genetic competitive effects are ",
+             "estimated. Leave blank for a single-trait model."),
         select_input(ns("site_col"), "Site / environment column (optional)", optional,
                      guess_column(nms, c("^env", "environment", "^site", "location", "trial"), "")),
         shiny::uiOutput(ns("site_pick")),
@@ -304,7 +345,8 @@ single_server <- function(id) {
       shiny::req(raw(), input$yield_col, input$geno_col, input$row_col, input$column_col)
       prepare_trial_data(single_site(), list(
         yield = input$yield_col, geno = input$geno_col, row = input$row_col,
-        column = input$column_col, rep = input$rep_col, block = input$block_col))
+        column = input$column_col, rep = input$rep_col, block = input$block_col,
+        trait = input$trait_col))
     })
 
     # Validated data, or the error message, without aborting the whole session.
@@ -437,6 +479,7 @@ single_server <- function(id) {
           maxit = input$maxit, workspace = "2gb", cinv_limit = 6000L,
           row_process = input$row_process %||% "ar1",
           col_process = input$col_process %||% "ar1",
+          adjust_own_trait = isTRUE(input$adjust_own_trait),
           relationship = relationship()),
         progress = function(i, n, reason) {
           prog$set(0.15 + 0.7 * i / max(n, 1),
@@ -522,17 +565,69 @@ single_server <- function(id) {
       )
     })
 
-    output$genetic <- DT::renderDT({
-      dt_table(res()$genetic, digits = 4, highlight = "Pure_stand_effect")
+    # Evaluated genotypes and relatives predicted from the relationship matrix
+    # are reported apart: the second group has no plots of its own, so their
+    # values rest entirely on pedigree or marker information.
+    genetic_split <- shiny::reactive({
+      g <- res()$genetic
+      if (!"Tested" %in% names(g)) {
+        return(list(evaluated = g, inferred = g[0, , drop = FALSE]))
+      }
+      list(evaluated = g[g$Tested == "In trial", setdiff(names(g), "Tested"), drop = FALSE],
+           inferred  = g[g$Tested != "In trial", setdiff(names(g), "Tested"), drop = FALSE])
     })
-    table_download_server("dl_genetic", function() res()$genetic,
-                          "interplot_genetic_values")
+
+    output$has_inferred <- shiny::reactive({ nrow(genetic_split()$inferred) > 0 })
+    shiny::outputOptions(output, "has_inferred", suspendWhenHidden = FALSE)
+
+    output$genetic <- DT::renderDT({
+      dt_table(genetic_split()$evaluated, digits = 4,
+               highlight = "Predicted_pure_stand_yield")
+    })
+    output$inferred <- DT::renderDT({
+      dt_table(genetic_split()$inferred, digits = 4,
+               highlight = "Predicted_pure_stand_yield")
+    })
+    table_download_server("dl_genetic", function() genetic_split()$evaluated,
+                          "interplot_genetic_values_evaluated")
+    table_download_server("dl_inferred", function() genetic_split()$inferred,
+                          "interplot_genetic_values_relatives")
 
     output$variance <- DT::renderDT({ dt_table(res()$variance, digits = 5, page_length = 10) })
     table_download_server("dl_variance", function() res()$variance,
                           "interplot_variance_components")
 
     output$varcomp <- DT::renderDT({ dt_table(res()$varcomp, digits = 5, page_length = 12) })
+    output$heritability <- DT::renderDT({
+      dt_table(single_heritability_table(res()), digits = 4, page_length = 5)
+    })
+    output$fixed_card <- shiny::renderUI({
+      if (!length(res()$trait_terms)) return(NULL)
+      panel_card(
+        "Competition adjustment trait",
+        DT::DTOutput(ns("fixed_effects")),
+        note("The neighbour slope is the adjustment: it is the change in a ",
+             "plot's yield per unit of the trait summed over its neighbours. ",
+             "A negative slope means larger neighbours suppress the focal plot, ",
+             "which is interference the model has now removed before estimating ",
+             "the genetic competitive effects. Compare the direct-competition ",
+             "correlation with and without the trait to see how much of the ",
+             "competition it explains."),
+        note(shiny::strong("Do not compare log-likelihood, AIC or BIC "),
+             "between a run with the adjustment trait and one without. Adding a ",
+             "covariate changes the fixed model, and REML likelihoods are only ",
+             "comparable when the fixed effects are identical. Compare the ",
+             "variance components and the direct-competition correlation ",
+             "instead. The likelihood-ratio test reported elsewhere is ",
+             "unaffected: it compares two models that share whatever fixed ",
+             "effects are in force."),
+        icon_name = "rulers", full_screen = FALSE)
+    })
+    output$fixed_effects <- DT::renderDT({
+      dt_table(res()$fixed_effects, digits = 5, page_length = 10)
+    })
+    table_download_server("dl_h2", function() single_heritability_table(res()),
+                          "interplot_heritability")
 
     output$comparison_card <- shiny::renderUI({
       r <- res()
@@ -572,8 +667,8 @@ single_server <- function(id) {
     }, "direct_vs_competitive", "540px", interactive = TRUE)
 
     figure_server("fig_ranking", function(bs) {
-      plot_ranking(res()$genetic, "Pure_stand_effect", top_n = input$top_n %||% 25,
-                   base_size = bs, caption = cap())
+      plot_ranking(genetic_split()$evaluated, "Predicted_pure_stand_yield",
+                   top_n = input$top_n %||% 25, base_size = bs, caption = cap())
     }, "pure_stand_ranking", "620px")
 
     figure_server("fig_rankchange", function(bs) {
@@ -663,7 +758,9 @@ single_server <- function(id) {
       content = function(file) {
         r <- res()
         save_results_workbook(list(
-          `Genetic values` = r$genetic,
+          `Genetic values` = genetic_split()$evaluated,
+          `Predicted relatives` = genetic_split()$inferred,
+          `Heritability` = single_heritability_table(r),
           `Variance summary` = r$variance,
           `ASReml variance parameters` = r$varcomp,
           `Model comparison` = r$comparison$table,
@@ -682,7 +779,8 @@ single_server <- function(id) {
         v <- variogram()
         figs <- list(
           function(bs) plot_direct_vs_competition(r$genetic, r$k, 12, bs, cap()),
-          function(bs) plot_ranking(r$genetic, "Pure_stand_effect",
+          function(bs) plot_ranking(genetic_split()$evaluated,
+                                    "Predicted_pure_stand_yield",
                                     top_n = 30, base_size = bs, caption = cap()),
           function(bs) plot_rank_change(r$genetic, 25, bs, cap()),
           function(bs) plot_variance_components(r$varcomp, bs, cap()),

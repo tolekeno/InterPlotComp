@@ -120,13 +120,27 @@ met_ui <- function(id) {
         shiny::uiOutput(ns("result_status")),
         shiny::uiOutput(ns("metrics")),
         panel_card(
-          "Environment-specific genetic values",
-          table_download_ui(ns("dl_values"), "Download MET values"),
+          "Evaluated genotypes",
+          table_download_ui(ns("dl_values"), "Download evaluated genotypes"),
           DT::DTOutput(ns("values")),
           note("Predicted pure-stand yield is the fitted environment mean plus ",
-               "the environment-specific pure-stand genetic effect. Use the ",
-               "column filters to isolate one environment or one genotype."),
-          icon_name = "award")
+               "the environment-specific pure-stand genetic effect, and is what ",
+               "the within-environment ranking is built on. Use the column ",
+               "filters to isolate one environment or one genotype."),
+          icon_name = "award"),
+        shiny::conditionalPanel(
+          condition = "output.has_inferred === true", ns = ns,
+          panel_card(
+            "Relatives predicted from the relationship matrix",
+            table_download_ui(ns("dl_inferred"), "Download predicted relatives"),
+            DT::DTOutput(ns("inferred")),
+            note("Individuals that appear only in the relationship matrix - ",
+                 "parents and other relatives with no plot in any environment - ",
+                 "are predicted from their relatives and listed separately, ",
+                 "because their values rest on pedigree or marker information ",
+                 "rather than on their own performance."),
+            icon_name = "diagram-3")
+        )
       ),
 
       bslib::nav_panel(
@@ -177,6 +191,15 @@ met_ui <- function(id) {
                    shiny::uiOutput(ns("dc_note")),
                    icon_name = "calculator",
                    full_screen = FALSE),
+        shiny::uiOutput(ns("fixed_card")),
+        panel_card("Heritability and accuracy by environment",
+                   table_download_ui(ns("dl_h2"), "Download heritability"),
+                   DT::DTOutput(ns("heritability")),
+                   note("Cullis generalised heritability, computed from the ",
+                        "prediction error variances, so it is valid under the ",
+                        "unequal replication a MET usually has. The pure-stand ",
+                        "column is the one selection acts on."),
+                   icon_name = "percent", full_screen = FALSE),
         shiny::uiOutput(ns("fa_card")),
         panel_card("All ASReml variance parameters", DT::DTOutput(ns("varcomp")),
                    icon_name = "list-columns", full_screen = FALSE),
@@ -250,6 +273,25 @@ met_server <- function(id) {
           shiny::column(6, select_input(ns("block_col"), "Block (optional)", optional,
                                         guess_column(nms, c("block", "iblk"), "")))
         ),
+        select_input(ns("trait_col"),
+                     "Competition adjustment trait (optional)", optional,
+                     guess_column(nms, c("height", "^ph$", "plant.?height",
+                                         "canopy", "vigour", "vigor", "biomass"), "")),
+        shiny::conditionalPanel(
+          sprintf("input['%s'] != ''", ns("trait_col")),
+          switch_input(ns("adjust_own_trait"),
+                       "Also adjust for the plot's own value", FALSE,
+                       help = paste("Off by default: the focal plot's own trait",
+                                    "value absorbs genetic variation in that",
+                                    "trait and so removes part of the direct",
+                                    "effect being estimated."))
+        ),
+        note("A measured proxy for the physical cause of interference \u2014 plant ",
+             "height, canopy width, root vigour. The neighbouring plots' values ",
+             "enter as a fixed covariate, so competition attributable to the ",
+             "trait is removed before the genetic competitive effects are ",
+             "estimated. Leave blank for a single-trait model."),
+
         note("Row-column positions must be unique within each environment. ",
              "Environments may differ in size and in the genotypes they carry.")
       )
@@ -261,7 +303,8 @@ met_server <- function(id) {
       prepare_trial_data(raw(), list(
         env = input$env_col, yield = input$yield_col, geno = input$geno_col,
         row = input$row_col, column = input$column_col,
-        rep = input$rep_col, block = input$block_col), multi_env = TRUE)
+        rep = input$rep_col, block = input$block_col,
+        trait = input$trait_col), multi_env = TRUE)
     })
 
     # A `req()` further up raises a silent error, which means "not ready yet",
@@ -396,6 +439,7 @@ met_server <- function(id) {
           maxit = input$maxit, workspace = "4gb", cinv_limit = 8000L,
           row_process = input$row_process %||% "ar1",
           col_process = input$col_process %||% "ar1",
+          adjust_own_trait = isTRUE(input$adjust_own_trait),
           relationship = relationship()),
         progress = function(i, n, reason) {
           prog$set(0.15 + 0.7 * i / max(n, 1),
@@ -484,10 +528,30 @@ met_server <- function(id) {
       )
     })
 
-    output$values <- DT::renderDT({
-      dt_table(res()$values, digits = 4, highlight = "Pure_stand_effect")
+    values_split <- shiny::reactive({
+      v <- res()$values
+      if (!"Tested" %in% names(v)) {
+        return(list(evaluated = v, inferred = v[0, , drop = FALSE]))
+      }
+      keep <- setdiff(names(v), "Tested")
+      list(evaluated = v[v$Tested == "In trial", keep, drop = FALSE],
+           inferred  = v[v$Tested != "In trial", keep, drop = FALSE])
     })
-    table_download_server("dl_values", function() res()$values, "met_genetic_values")
+    output$has_inferred <- shiny::reactive({ nrow(values_split()$inferred) > 0 })
+    shiny::outputOptions(output, "has_inferred", suspendWhenHidden = FALSE)
+
+    output$values <- DT::renderDT({
+      dt_table(values_split()$evaluated, digits = 4,
+               highlight = "Predicted_pure_stand_yield")
+    })
+    output$inferred <- DT::renderDT({
+      dt_table(values_split()$inferred, digits = 4,
+               highlight = "Predicted_pure_stand_yield")
+    })
+    table_download_server("dl_values", function() values_split()$evaluated,
+                          "met_genetic_values_evaluated")
+    table_download_server("dl_inferred", function() values_split()$inferred,
+                          "met_genetic_values_relatives")
 
     output$variance <- DT::renderDT({ dt_table(res()$variance, digits = 5, page_length = 10) })
     output$dc_note <- shiny::renderUI({
@@ -501,6 +565,33 @@ met_server <- function(id) {
     })
     table_download_server("dl_variance", function() res()$variance, "met_environment_variances")
     output$varcomp <- DT::renderDT({ dt_table(res()$varcomp, digits = 5, page_length = 15) })
+    output$heritability <- DT::renderDT({
+      dt_table(met_heritability_table(res()), digits = 4, page_length = 10)
+    })
+    output$fixed_card <- shiny::renderUI({
+      if (!length(res()$trait_terms)) return(NULL)
+      panel_card(
+        "Competition adjustment trait",
+        DT::DTOutput(ns("fixed_effects")),
+        note("The neighbour slope is the change in a plot's yield per unit of ",
+             "the trait summed over its neighbours, fitted in common across ",
+             "environments. A negative slope means larger neighbours suppress ",
+             "the focal plot."),
+        note(shiny::strong("Do not compare log-likelihood, AIC or BIC "),
+             "between a run with the adjustment trait and one without. Adding a ",
+             "covariate changes the fixed model, and REML likelihoods are only ",
+             "comparable when the fixed effects are identical. Compare the ",
+             "variance components and the direct-competition correlation ",
+             "instead. The likelihood-ratio test reported elsewhere is ",
+             "unaffected: it compares two models that share whatever fixed ",
+             "effects are in force."),
+        icon_name = "rulers", full_screen = FALSE)
+    })
+    output$fixed_effects <- DT::renderDT({
+      dt_table(res()$fixed_effects, digits = 5, page_length = 12)
+    })
+    table_download_server("dl_h2", function() met_heritability_table(res()),
+                          "met_heritability")
 
     output$fa_card <- shiny::renderUI({
       if (is.null(res()$fa_summary)) return(NULL)
@@ -581,11 +672,11 @@ met_server <- function(id) {
 
     # ---- other figures ----------------------------------------------------
     figure_server("fig_stability", function(bs) {
-      plot_stability(res()$values, input$top_n %||% 12, bs, cap())
+      plot_stability(values_split()$evaluated, input$top_n %||% 12, bs, cap())
     }, "met_stability", "560px", interactive = TRUE)
 
     figure_server("fig_scatter", function(bs) {
-      plot_met_scatter(res()$values, res()$k, bs, cap())
+      plot_met_scatter(values_split()$evaluated, res()$k, bs, cap())
     }, "met_direct_vs_competitive", "620px")
 
     figure_server("fig_envvar", function(bs) {
@@ -656,7 +747,9 @@ met_server <- function(id) {
       content = function(file) {
         r <- res()
         save_results_workbook(list(
-          `Genetic values` = r$values,
+          `Genetic values` = values_split()$evaluated,
+          `Predicted relatives` = values_split()$inferred,
+          `Heritability` = met_heritability_table(r),
           `Environment variances` = r$variance,
           `Correlations` = correlation_long(),
           `Factor analytic fit` = r$fa_summary,
@@ -684,8 +777,8 @@ met_server <- function(id) {
                                                 "Pure-stand genetic correlations",
                                                 NULL, bs, cap()),
           function(bs) plot_environment_variances(r$variance, bs, cap()),
-          function(bs) plot_stability(r$values, 12, bs, cap()),
-          function(bs) plot_met_scatter(r$values, r$k, bs, cap()),
+          function(bs) plot_stability(values_split()$evaluated, 12, bs, cap()),
+          function(bs) plot_met_scatter(values_split()$evaluated, r$k, bs, cap()),
           function(bs) plot_residual_diagnostics(r$residuals, bs, cap())
         )
         if (!is.null(r$fa_summary)) {
