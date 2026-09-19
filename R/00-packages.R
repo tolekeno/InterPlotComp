@@ -26,7 +26,6 @@ OPTIONAL_PACKAGES <- c(
   svglite         = "SVG figure export",
   ggrepel         = "non-overlapping genotype labels",
   patchwork       = "multi-panel diagnostic figures",
-  viridisLite     = "colour-blind-safe continuous palettes",
   writexl         = "Excel workbook export",
   rmarkdown       = "self-contained HTML analysis report",
   knitr           = "report rendering"

@@ -44,8 +44,15 @@ app_ui <- function() {
 
     bslib::nav_spacer(),
     bslib::nav_item(
-      shiny::tags$span(class = "navbar-text small text-white-50",
+      shiny::tags$span(class = "navbar-text",
                        sprintf("v%s \u00b7 ASReml-R engine", APP_VERSION))
+    ),
+    # A deliberate second mode, not an automatic inversion: the dark tokens
+    # in `PAL_DARK` were re-chosen against the dark surface and re-checked
+    # for contrast. Figures keep their light ground in both modes, because
+    # they are exported for print and the preview must match the file.
+    bslib::nav_item(
+      bslib::input_dark_mode(id = "colour_mode", mode = "light")
     )
   )
 }

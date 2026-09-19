@@ -31,7 +31,7 @@ relationship_ui <- function(id) {
           ns("separator"), "Separator",
           c("Comma" = ",", "Semicolon" = ";", "Tab" = "\t", "Space" = " "), ",")),
         shiny::column(6, shiny::div(
-          style = "margin-top:1.9rem;",
+          class = "input-align-bottom",
           shiny::checkboxInput(ns("header"), "First row is a header", TRUE)))
       ),
 

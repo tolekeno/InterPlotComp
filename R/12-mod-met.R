@@ -328,9 +328,16 @@ met_server <- function(id) {
 
     output$data_status <- shiny::renderUI({
       if (is.null(input$file)) {
-        return(status_banner("warn", "No MET data loaded yet",
-                             "Upload a CSV containing an environment column, or ",
-                             "download the worked example.", icon_name = "upload"))
+        return(empty_state(
+          "No multi-environment data loaded yet",
+          paste("This workspace fits direct and competitive effects jointly",
+                "across environments, so that the genetic correlations between",
+                "sites are estimated rather than assumed."),
+          steps = c(
+            "Upload a CSV whose rows are plots and which carries an environment column, or download the worked example.",
+            "Map the environment, response, genotype and field-coordinate columns.",
+            "Choose the across-environment covariance structure.",
+            "Fit the model, then read the genetic correlations before pooling sites.")))
       }
       z <- safe_prepared()
       if (isTRUE(z$pending)) {
@@ -473,7 +480,7 @@ met_server <- function(id) {
       z <- safe_result()
       if (!isTRUE(z$ok)) {
         return(status_banner("bad", "The MET model could not be fitted",
-                             shiny::pre(style = "white-space:pre-wrap;font-size:.8rem;",
+                             shiny::pre(class = "error-detail",
                                         z$message)))
       }
       r <- z$value

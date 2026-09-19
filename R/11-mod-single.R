@@ -363,10 +363,16 @@ single_server <- function(id) {
 
     output$data_status <- shiny::renderUI({
       if (is.null(input$file)) {
-        return(status_banner(
-          "warn", "No data loaded yet",
-          "Upload a CSV in the sidebar, or download the worked example to see ",
-          "the expected layout.", icon_name = "upload"))
+        return(empty_state(
+          "No trial data loaded yet",
+          paste("This workspace fits a direct-competition mixed model to a",
+                "single-row-plot trial, so that a genotype's own performance",
+                "is separated from the effect it has on its neighbours."),
+          steps = c(
+            "Upload a CSV of plot records in the sidebar, or download the worked example to see the expected layout.",
+            "Map the response, genotype and field-coordinate columns.",
+            "Check that the competing direction matches your field plan.",
+            "Fit the model. Every figure can be exported at up to 1200 dpi.")))
       }
       z <- safe_prepared()
       if (isTRUE(z$pending)) {
@@ -517,7 +523,7 @@ single_server <- function(id) {
       z <- safe_result()
       if (!isTRUE(z$ok)) {
         return(status_banner("bad", "The model could not be fitted",
-                             shiny::pre(style = "white-space:pre-wrap;font-size:.8rem;",
+                             shiny::pre(class = "error-detail",
                                         z$message)))
       }
       r <- z$value

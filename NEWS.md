@@ -1,3 +1,70 @@
+# InterPlotComp 3.7.0
+
+## Interface
+
+* The whole interface has been rebuilt on an explicit design system. Every
+  colour is now emitted once as a CSS custom property, so the stylesheet, the
+  Bootstrap theme and the figures cannot drift apart.
+
+* **A dark mode.** The toggle sits at the right of the navigation bar. It is a
+  second, deliberately chosen palette rather than an automatic inversion: each
+  step was re-picked against the dark surface and re-checked for contrast
+  (headings 14.6:1, body text 10.6:1, help text 6.4:1). Figures deliberately
+  keep their light ground in both modes, because they are exported for print
+  and the preview must match the exported file.
+
+* **Typography.** A 15 px base on a 1.20 type scale, the platform UI face
+  rather than a downloaded web font (the application must run offline), tighter
+  optical letter-spacing on headings, and tabular lining figures in tables and
+  model summaries so digits align column-wise. Metric values keep proportional
+  figures, which read better at display size.
+
+* **Layout and spacing** now come from one 4 px scale, applied consistently to
+  cards, the sidebar, the accordion, tabs, buttons, inputs and tables. Metric
+  strips reflow on a CSS grid, the interface degrades cleanly to phone width,
+  keyboard focus is always visible, and `prefers-reduced-motion` and print
+  stylesheets are honoured.
+
+* Empty workspaces now show what to do next instead of a blank results card.
+
+## Figures
+
+* **The palette is now computed rather than chosen.** The three effect series,
+  the sequential ramp and the diverging ramp were stepped in OKLab and checked
+  against a lightness band, a chroma floor, a colour-vision-deficiency
+  separation target after Machado-Oliveira-Fernandes (2009) protan/deutan
+  simulation, a normal-vision floor and a contrast floor. The previous series
+  green and blue read as grey (chroma 0.093, below the 0.10 floor); the
+  replacements separate by dE 12.3 under deuteranopia.
+
+* **Diverging scales are now centred on zero.** The direct-versus-competitive
+  scatter, its multi-environment counterpart and the rank-change slope chart
+  previously stretched the ramp over the observed range, which put the neutral
+  colour at the middle of the data rather than at "no effect" - so a set of
+  entirely positive effects came out half blue.
+
+* The rank-change chart no longer uses red-to-green poles, the one pairing a
+  deuteranope cannot resolve. Strokes take a higher-contrast variant of the
+  ramp, so a line at "no change" no longer vanishes into the page.
+
+* The stability chart no longer gives each of twelve genotypes its own hue.
+  The highest-ranked few are drawn in the series colours and directly labelled;
+  the rest form a recessive backdrop that still shows the spread and the
+  crossovers.
+
+* The ranking chart takes one series colour instead of a ramp that merely
+  repeated its own x axis, and its rank axis no longer offers a rank 0.
+
+* Correlation-heatmap labels take their colour from the luminance of the step
+  they sit on, so a value can no longer be drawn as white text on a pale tile.
+  Scatter markers gained a surface-coloured ring, which separates overlapping
+  points far better than blanket transparency.
+
+* Recessive grid and axis furniture, wider figure margins and consistent legend
+  placement throughout.
+
+* `viridisLite` is no longer a suggested dependency.
+
 # InterPlotComp 3.6.0
 
 * The fit now continues until ASReml reports convergence, restarting from the

@@ -71,9 +71,9 @@ plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
 
   p <- p + if (diverging) {
     ggplot2::scale_fill_gradientn(colours = DIVERGING, limits = c(-limit, limit),
-                                  na.value = "#E9EDEA")
+                                  na.value = PAL$line_soft)
   } else {
-    ggplot2::scale_fill_gradientn(colours = SEQUENTIAL, na.value = "#E9EDEA")
+    ggplot2::scale_fill_gradientn(colours = SEQUENTIAL, na.value = PAL$line_soft)
   }
   if (facet) p <- p + ggplot2::facet_wrap(~ Env, scales = "free")
   p
@@ -112,10 +112,17 @@ plot_direct_vs_competition <- function(genetic, k = 2, label_n = 12,
                          intercept = stats::quantile(d$Pure, c(0.1, 0.5, 0.9),
                                                      na.rm = TRUE) / k,
                          colour = PAL$pure, linetype = "dotted", linewidth = 0.4) +
-    ggplot2::geom_point(ggplot2::aes(size = .data$Pure, colour = .data$Pure),
-                        alpha = 0.85) +
-    ggplot2::scale_colour_gradientn(colours = DIVERGING, name = "Pure-stand effect") +
+    # A thin surface-coloured ring separates overlapping markers, which reads
+    # far more cleanly in a dense cloud than blanket transparency.
+    ggplot2::geom_point(ggplot2::aes(size = .data$Pure, fill = .data$Pure),
+                        shape = 21, colour = PAL$surface, stroke = 0.4) +
+    scale_diverging(d$Pure, centre = 0, aesthetic = "fill",
+                    name = "Pure-stand effect") +
     ggplot2::scale_size_continuous(range = c(1.6, 5), guide = "none") +
+    # Labels are repelled outwards, so the panel needs margin on both axes or
+    # the extreme genotypes - exactly the ones worth naming - are clipped.
+    ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = 0.10)) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = 0.10)) +
     ggplot2::labs(
       title = "Direct versus competitive genetic effects",
       subtitle = wrap_subtitle(sprintf(paste(
@@ -131,7 +138,8 @@ plot_direct_vs_competition <- function(genetic, k = 2, label_n = 12,
     p <- p + ggrepel::geom_text_repel(
       data = top, ggplot2::aes(label = .data$Genotype),
       size = base_size * 0.24, colour = PAL$ink, max.overlaps = 20,
-      min.segment.length = 0.2, segment.colour = PAL$muted, segment.size = 0.25)
+      min.segment.length = 0.2, segment.colour = PAL$muted, segment.size = 0.25,
+      box.padding = 0.4, xlim = c(NA, NA), ylim = c(NA, NA))
   }
   p
 }
@@ -186,8 +194,10 @@ plot_ranking <- function(genetic,
         mean(genetic[[effect]], na.rm = TRUE)
       } else 0,
       colour = PAL$muted, linetype = "dashed", linewidth = 0.4) +
-    ggplot2::geom_point(ggplot2::aes(colour = .data[[effect]]), size = 2.4) +
-    ggplot2::scale_colour_gradientn(colours = DIVERGING, guide = "none") +
+    # Colour carries no information here - the position along the axis already
+    # is the value - so the points take the single series colour of the
+    # quantity being ranked rather than a ramp that repeats the x axis.
+    ggplot2::geom_point(size = 2.4, colour = series_colour(effect)) +
     ggplot2::labs(
       title = sprintf("Top %d genotypes by %s", nrow(d), tolower(label)),
       subtitle = wrap_subtitle(if (has_se) {
@@ -224,10 +234,17 @@ plot_rank_change <- function(genetic, top_n = 25, base_size = 12, caption = NULL
       data = long[long$Stage == "Pure-stand value", ],
       ggplot2::aes(label = .data$Genotype), hjust = -0.18,
       size = base_size * 0.22, colour = PAL$body) +
-    ggplot2::scale_y_reverse(breaks = scales::breaks_pretty()) +
-    ggplot2::scale_colour_gradient2(low = PAL$danger, mid = PAL$muted,
-                                    high = PAL$primary, midpoint = 0,
-                                    name = "Places gained") +
+    # Ranks start at 1, so a pretty-break axis that offers 0 labels a position
+    # that cannot exist.
+    ggplot2::scale_y_reverse(
+      breaks = function(x) {
+        b <- scales::breaks_pretty()(x)
+        unique(c(1, b[b >= 1]))
+      }) +
+    # Red-to-green poles are the one pairing deuteranopes cannot resolve, so
+    # the shared blue-to-earth ramp is used instead, centred on "no change".
+    scale_diverging(long$Change, centre = 0, aesthetic = "colour",
+                    name = "Places gained") +
     ggplot2::scale_x_discrete(expand = ggplot2::expansion(mult = c(0.08, 0.30))) +
     ggplot2::labs(
       title = "Selection decisions change once competition is modelled",
@@ -384,12 +401,16 @@ plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
 
   if (show_values && nrow(m) <= 16) {
     labelled <- long[!is.na(long$Correlation), , drop = FALSE]
+    # The label colour is taken from the luminance of the step it is drawn on,
+    # so a value never comes out as white text on a pale part of the ramp.
+    fills <- scales::gradient_n_pal(DIVERGING)(
+      scales::rescale(labelled$Correlation, from = c(-1, 1)))
+    labelled$Label_colour <- contrast_text(fills)
     p <- p + ggplot2::geom_text(
       data = labelled,
-      ggplot2::aes(label = sprintf("%.2f", .data$Correlation),
-                   colour = abs(.data$Correlation) > 0.6),
-      size = base_size * 0.23, fontface = "bold", show.legend = FALSE) +
-      ggplot2::scale_colour_manual(values = c(`TRUE` = "white", `FALSE` = PAL$ink))
+      ggplot2::aes(label = sprintf("%.2f", .data$Correlation)),
+      colour = labelled$Label_colour,
+      size = base_size * 0.23, fontface = "bold", show.legend = FALSE)
   }
   p
 }
@@ -432,25 +453,59 @@ plot_stability <- function(values, top_n = 12, base_size = 12, caption = NULL) {
   keep <- names(sort(mean_effect, decreasing = TRUE))[seq_len(min(top_n, length(mean_effect)))]
   d <- d[d$Genotype %in% keep, , drop = FALSE]
 
-  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$Environment, y = .data$Pure_stand_effect,
-                                       group = .data$Genotype,
-                                       colour = .data$Genotype)) +
+  # Emphasis rather than one hue per genotype. Giving each of a dozen lines its
+  # own colour puts the whole set past the point where adjacent hues can be
+  # told apart - and under colour-vision deficiency well past it - so the few
+  # genotypes the reader is actually choosing between are drawn in the series
+  # colours and directly labelled, and the rest form a recessive backdrop that
+  # still shows the spread and the crossovers.
+  n_lead <- min(3L, length(keep))
+  lead <- keep[seq_len(n_lead)]
+  d$Lead <- factor(ifelse(d$Genotype %in% lead, d$Genotype, "Other"),
+                   levels = c(lead, "Other"))
+  lead_colours <- stats::setNames(
+    c(PAL$direct, PAL$competition, PAL$pure)[seq_len(n_lead)], lead)
+  back <- d[!d$Genotype %in% lead, , drop = FALSE]
+  front <- d[d$Genotype %in% lead, , drop = FALSE]
+
+  last_env <- levels(factor(d$Environment))
+  last_env <- last_env[length(last_env)]
+  tips <- front[as.character(front$Environment) == last_env, , drop = FALSE]
+
+  p <- ggplot2::ggplot(mapping = ggplot2::aes(x = .data$Environment,
+                                              y = .data$Pure_stand_effect,
+                                              group = .data$Genotype)) +
     ggplot2::geom_hline(yintercept = 0, colour = PAL$muted, linetype = "dashed",
                         linewidth = 0.4) +
-    ggplot2::geom_line(linewidth = 0.7, alpha = 0.85) +
-    ggplot2::geom_point(size = 1.9) +
+    ggplot2::geom_line(data = back, colour = PAL$faint, linewidth = 0.45,
+                       alpha = 0.7) +
+    ggplot2::geom_point(data = back, colour = PAL$faint, size = 1.2, alpha = 0.7) +
+    ggplot2::geom_line(data = front,
+                       ggplot2::aes(colour = .data$Genotype), linewidth = 0.9) +
+    ggplot2::geom_point(data = front,
+                        ggplot2::aes(colour = .data$Genotype), size = 2.2) +
+    ggplot2::scale_colour_manual(values = lead_colours, name = NULL,
+                                 breaks = lead) +
+    ggplot2::scale_x_discrete(expand = ggplot2::expansion(mult = c(0.04, 0.22))) +
     ggplot2::labs(
       title = sprintf("Pure-stand performance of the top %d genotypes", length(keep)),
-      subtitle = wrap_subtitle("Crossing lines indicate crossover genotype-by-environment interaction"),
-      x = NULL, y = "Pure-stand genetic effect", colour = NULL,
+      subtitle = wrap_subtitle(sprintf(paste(
+        "Crossing lines indicate crossover genotype-by-environment interaction.",
+        "The %d highest-ranked genotypes are named; the remaining %d are shown",
+        "in grey for context."), n_lead, length(keep) - n_lead)),
+      x = NULL, y = "Pure-stand genetic effect",
       caption = wrap_caption(caption)) +
     theme_trial(base_size, grid = "y") +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1),
-                   legend.position = "right",
-                   legend.text = ggplot2::element_text(size = base_size * 0.7))
-  if (has_pkg("viridisLite")) {
-    p <- p + ggplot2::scale_colour_manual(
-      values = viridisLite::viridis(length(keep), end = 0.9))
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
+
+  # A legend is always present for two or more series; four or fewer are also
+  # direct-labelled, so identity never rests on colour alone.
+  if (nrow(tips)) {
+    p <- p + ggplot2::geom_text(
+      data = tips,
+      ggplot2::aes(label = .data$Genotype, colour = .data$Genotype),
+      hjust = -0.18, size = base_size * 0.24, fontface = "bold",
+      show.legend = FALSE)
   }
   p
 }
@@ -483,9 +538,10 @@ plot_met_scatter <- function(values, k = 2, base_size = 12, caption = NULL) {
                         linewidth = 0.35) +
     ggplot2::geom_vline(xintercept = 0, colour = PAL$muted, linetype = "dashed",
                         linewidth = 0.35) +
-    ggplot2::geom_point(ggplot2::aes(colour = .data$Pure_stand_effect), alpha = 0.8,
-                        size = 1.7) +
-    ggplot2::scale_colour_gradientn(colours = DIVERGING, name = "Pure-stand effect") +
+    ggplot2::geom_point(ggplot2::aes(fill = .data$Pure_stand_effect), shape = 21,
+                        colour = PAL$surface, stroke = 0.3, size = 1.9) +
+    scale_diverging(d$Pure_stand_effect, centre = 0, aesthetic = "fill",
+                    name = "Pure-stand effect") +
     ggplot2::facet_wrap(~ Environment) +
     ggplot2::labs(
       title = "Direct and competitive effects within each environment",

@@ -159,7 +159,9 @@ figure_ui <- function(id, height = "460px", interactive = FALSE) {
     plot_area <- shinycssloaders::withSpinner(plot_area, color = PAL$primary,
                                               type = 8, size = 0.7)
   }
-  shiny::tagList(control, plot_area)
+  # The figure sits on its own light "paper" ground in both colour modes, so
+  # that what is on screen is what lands in the 600 dpi export.
+  shiny::tagList(control, shiny::div(class = "fig-paper", plot_area))
 }
 
 #' Server for `figure_ui()`.

@@ -347,6 +347,23 @@ shares, field plans, residual diagnostics, sample variogram, and for a MET:
 genetic-correlation heatmaps, environment variances, stability across
 environments and factor-analytic fit.
 
+**Colour** — the three effect series, the sequential ramp and the diverging
+ramp are not chosen by eye. They are stepped in OKLab and checked against a
+lightness band, a chroma floor, a colour-vision-deficiency separation target
+after Machado-Oliveira-Fernandes (2009) protan and deutan simulation, a
+normal-vision floor and a contrast floor, so a figure is legible in print, in
+greyscale and to a reader with colour-vision deficiency. Diverging scales are
+centred on zero, so the neutral step always means *no effect* rather than *the
+middle of this dataset*.
+
+**Interface** — one design system drives the Bootstrap theme, the stylesheet
+and the figures. Typography is a 15 px base on a 1.20 scale using the platform
+UI face, so nothing is downloaded at run time and the application works on an
+offline analysis machine. A dark mode is available from the navigation bar; it
+is a second validated palette rather than an automatic inversion, and figures
+keep their light ground in both modes so the preview matches the exported file.
+The layout is responsive down to phone width.
+
 **Exports** — every figure downloads as PNG, PDF, TIFF (LZW), SVG or EPS at a
 chosen canvas size and resolution, defaulting to **600 dpi** at journal column
 widths. Every table downloads as CSV or Excel, and the whole analysis downloads
