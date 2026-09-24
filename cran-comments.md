@@ -9,6 +9,9 @@
 
 0 errors | 0 warnings | 1 note
 
+The package website at <https://tolekeno.github.io/InterPlotComp/> is live, so
+the only NOTE is the one below.
+
 ## The one remaining NOTE
 
 ```
@@ -43,15 +46,6 @@ whatever ASReml installation and already-activated licence exist in the R
 process that runs it, and it never reads, writes, embeds, stores or transmits
 a licence key. This is documented in the DESCRIPTION, the package-level help,
 the README and the installation vignette.
-
-## Before submitting
-
-`R CMD check --as-cran` also reports the pkgdown URL
-`https://tolekeno.github.io/InterPlotComp/` as a 404. **Enable GitHub Pages for
-the repository (Settings to Pages, source `gh-pages`) and let the `pkgdown`
-workflow run once.** The URL resolves after that, and the NOTE disappears. If
-the site is not going to be published, remove the second URL from `DESCRIPTION`
-and the documentation link from `README.md` instead.
 
 ## Downstream dependencies
 
