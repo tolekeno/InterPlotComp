@@ -1,13 +1,15 @@
-# Builds the package website and deploys it straight to GitHub Pages.
+# Builds the package website and publishes it to GitHub Pages.
 #
-# This deploys through the official Pages actions rather than by pushing a
-# gh-pages branch. The branch approach failed in practice: GitHub does not
-# trigger downstream builds for pushes made with GITHUB_TOKEN, which is what a
-# deploy action uses, so the site only ever published when someone pushed that
-# branch by hand. deploy-pages publishes the artifact directly and does not
-# depend on a push event at all.
+# Deployment is by pushing the built site to the gh-pages branch, with Pages
+# configured as Source = "Deploy from a branch", branch gh-pages, folder /.
 #
-# Requires Settings -> Pages -> Source = "GitHub Actions".
+# This was briefly changed to the official Pages actions on the belief that a
+# push made with GITHUB_TOKEN would not trigger a Pages build. That was wrong:
+# the run history shows a "pages build and deployment" triggered by this
+# workflow's own push, and it succeeded. The site outage that prompted the
+# change was the repository being switched to private, which disables Pages on
+# a free account. The branch approach also needs no deployment-branch rule on
+# the github-pages environment, which the Actions approach did.
 on:
   push:
     branches: [main, master]
@@ -17,27 +19,16 @@ on:
 
 name: pkgdown
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Never let two deployments race; queue instead of cancelling, so a finished
-# build is not discarded half-published.
-concurrency:
-  group: pages
-  cancel-in-progress: false
+permissions: read-all
 
 jobs:
   pkgdown:
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -81,17 +72,16 @@ jobs:
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
+      # Deploying an empty or half-built directory would silently replace a
+      # working site, so fail here instead.
       - name: Fail if the site did not build
         run: |
           test -f docs/index.html || { echo "docs/index.html missing"; exit 1; }
           echo "pages built: $(find docs -name '*.html' | wc -l) html files"
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
-
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          clean: false
+          branch: gh-pages
+          folder: docs
