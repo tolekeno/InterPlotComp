@@ -34,6 +34,11 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      # R CMD check treats an unavailable Suggests as an ERROR
+      # ("Package suggested but not available: 'asreml'"). asreml is
+      # commercial and can never be installed on a public runner, so checking
+      # proceeds without it, exactly as CRAN's own incoming checks would.
+      _R_CHECK_FORCE_SUGGESTS_: false
 
     steps:
       - uses: actions/checkout@v4

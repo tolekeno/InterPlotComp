@@ -21,7 +21,9 @@ Fitting the model is the easy part. This vignette is about reading it: what
 each quantity means, how the pieces relate, and — the section that matters most
 — when the answer should not be trusted.
 
-```{r, eval = has_asreml, include = FALSE}
+```{r, include = FALSE}
+# Preparing the trial needs no ASReml, and the layout diagnostics further down
+# are built from it, so this chunk must run whether or not the engine is here.
 nb <- add_neighbours(
   complete_field_grid(
     prepare_trial_data(sample_single_trial(),
@@ -29,7 +31,9 @@ nb <- add_neighbours(
                             row = "Row", column = "Column",
                             rep = "Rep", block = "Block"))),
   axis = "rows")
+```
 
+```{r, eval = has_asreml, include = FALSE}
 fit <- fit_single_model(
   nb$data, nb$names,
   opts = list(structure = "us", spatial = TRUE, nugget = TRUE,
