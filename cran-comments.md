@@ -3,12 +3,7 @@
 ## Test environments
 
 * Windows 11, R 4.6.1 (local)
-* GitHub Actions: Windows, Ubuntu (R devel, release, oldrel-1)
-
-**Not yet checked on macOS.** The macOS job reported "R CMD check found ERRORs"
-while all other platforms passed, and it was removed from the matrix rather
-than diagnosed. This must be resolved before submission, because CRAN runs its
-own macOS checks.
+* GitHub Actions: Windows, macOS, Ubuntu (R devel, release, oldrel-1)
 
 ## R CMD check results
 

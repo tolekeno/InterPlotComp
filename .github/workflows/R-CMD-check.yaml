@@ -25,11 +25,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          # macOS is deliberately absent. Its release job failed with "R CMD
-          # check found ERRORs" while all four other platforms passed, and the
-          # cause was never diagnosed. CRAN runs its own macOS checks, so this
-          # needs investigating before any submission -- it is skipped here to
-          # unblock CI, not because it is believed to be fine.
+          - {os: macos-latest,   r: 'release'}
           - {os: windows-latest, r: 'release'}
           - {os: ubuntu-latest,  r: 'devel', http-user-agent: 'release'}
           - {os: ubuntu-latest,  r: 'release'}
