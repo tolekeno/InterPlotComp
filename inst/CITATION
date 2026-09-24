@@ -1,0 +1,25 @@
+citHeader("To cite InterPlotComp in publications, please cite both the paper that motivated the method and the software itself:")
+
+bibentry(
+  bibtype  = "Article",
+  title    = "Inter-plot competition in hybrid maize multi-environment yield trials in Ethiopia can reduce rate of genetic gain",
+  author   = c(person("Tolera", "Keno"),
+               person("Emma", "Mace"),
+               person("Ian", "Godwin"),
+               person("David", "Jordan"),
+               person("Alison", "Kelly")),
+  journal  = "Theoretical and Applied Genetics",
+  year     = "2026",
+  volume   = "139",
+  pages    = "174",
+  doi      = "10.1007/s00122-026-05255-0"
+)
+
+bibentry(
+  bibtype  = "Manual",
+  title    = "InterPlotComp: Inter-Plot Competition Analysis for Plant Breeding Trials",
+  author   = person("Tolera", "Keno"),
+  year     = format(Sys.Date(), "%Y"),
+  note     = sprintf("R package version %s", meta$Version),
+  url      = "https://github.com/tolekeno/InterPlotComp"
+)

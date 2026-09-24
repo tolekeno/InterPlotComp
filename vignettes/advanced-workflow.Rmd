@@ -1,0 +1,248 @@
+---
+title: "Advanced workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Advanced workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7,
+                      fig.height = 4.5, dpi = 96)
+has_asreml <- requireNamespace("asreml", quietly = TRUE)
+```
+
+```{r setup}
+library(InterPlotComp)
+```
+
+This vignette covers the three things that turn a working single-trial fit into
+a production analysis: a **relationship matrix**, a **covariate** for the
+physical cause of interference, and the **multi-environment** model.
+
+It assumes you have read *Basic workflow*.
+
+## Multi-environment trials
+
+A series of environments is prepared through the same function, with
+`multi_env = TRUE` and an environment column mapped:
+
+```{r}
+met_raw <- sample_met_trial()
+table(met_raw$Environment)
+
+met <- prepare_trial_data(
+  met_raw,
+  map = list(yield = "Yield_t_ha", geno = "Genotype", row = "Row",
+             column = "Column", env = "Environment", rep = "Rep",
+             block = "Block"),
+  multi_env = TRUE
+)
+
+attr(met, "field_summary")
+```
+
+The four environments have different sizes, different genotype panels and
+unequal replication — which is what a real series looks like. Each is padded to
+its own rectangle and gets its own residual section:
+
+```{r}
+met_nb <- add_neighbours(complete_field_grid(met), axis = "rows")
+nlevels(met_nb$data$Env)
+```
+
+Design factors are nested inside environment automatically. Block "1" in one
+environment is not the same block as "1" in another, and collapsing them is a
+common cause of a singular Average Information matrix:
+
+```{r}
+head(levels(met_nb$data$RepF))
+```
+
+### Choosing the between-environment structure
+
+| `structure` | What it assumes | Parameters |
+|---|---|---|
+| `"diag"` | No genetic correlation between environments | fewest |
+| `"facv"` | Joint factor-analytic covariance over direct *and* competitive effects | most |
+| `"separable"` | One 2×2 direct–competition covariance crossed with one environment covariance | middle |
+| `"fa"` | Separate FA covariances; direct–competition covariance fixed at zero | middle |
+
+`"facv"` is the model you want if it will fit: it is the only one that lets the
+direct–competition covariance differ between environments. `"separable"` is the
+usual fallback, costing `3 + E(r + 1)` parameters instead of `2E(r + 1)`.
+
+```{r, eval = has_asreml}
+met_fit <- fit_met_model(
+  met_nb$data, met_nb$names,
+  opts = list(structure = "facv", rank = 1L, spatial = TRUE, nugget = FALSE,
+              auto_simplify = TRUE, exact_se = FALSE, cinv_limit = 0L,
+              maxit = 25L, workspace = "2gb", compare_baseline = FALSE,
+              max_rounds = 10L)
+)
+
+met_fit$converged
+met_fit$description
+```
+
+### Genetic correlations between environments
+
+```{r, eval = has_asreml}
+round(met_fit$matrices$direct_cor, 3)
+```
+
+These are the correlations that decide whether one selection serves all
+environments. Values near 1 mean a genotype that wins in one environment wins
+in the others; values near zero mean environment-specific recommendations.
+
+```{r, eval = has_asreml, fig.alt = "Genetic correlation between environments"}
+plot_correlation_heatmap(met_fit$matrices$direct_cor,
+                         title = "Direct effects")
+```
+
+```{r, eval = has_asreml}
+met_fit$variance
+```
+
+### Stability across environments
+
+```{r, eval = has_asreml, fig.alt = "Pure-stand performance across environments"}
+plot_stability(met_fit$values, top_n = 10)
+```
+
+Lines that stay parallel are stable genotypes. Lines that cross are crossover
+genotype-by-environment interaction, and mean the recommendation depends on the
+environment.
+
+## Pedigree and genomic relationships
+
+By default genetic effects are independent between genotypes. Supplying a
+relationship matrix replaces that with a known covariance between relatives.
+For a competition model this matters twice over: the competitive effect is the
+harder of the two to estimate, and it borrows most of its information from
+relatives.
+
+Three sources are accepted — a pedigree, a ready-made kinship matrix, or a
+marker matrix:
+
+```{r, eval = has_asreml}
+ped <- sample_pedigree()
+head(ped)
+
+rel <- build_relationship(
+  type = "pedigree",
+  raw  = ped,
+  map  = list(id = "Genotype", sire = "Male_parent", dam = "Female_parent")
+)
+
+rel$label
+rel$diagnostics[c("n", "n_founders")]
+```
+
+A marker matrix goes through VanRaden's method 1, with a small ridge blended in
+so the result can be inverted:
+
+```{r, eval = FALSE}
+rel <- build_relationship("markers", raw = my_marker_data, blend = 0.01)
+```
+
+Pass the result to either fitting function:
+
+```{r, eval = has_asreml}
+nb <- add_neighbours(
+  complete_field_grid(
+    prepare_trial_data(sample_single_trial(),
+                       list(yield = "Yield_t_ha", geno = "Genotype",
+                            row = "Row", column = "Column", rep = "Rep"))),
+  axis = "rows")
+
+rel_fit <- fit_single_model(
+  nb$data, nb$names,
+  opts = list(structure = "diag", spatial = TRUE, nugget = FALSE,
+              auto_simplify = TRUE, exact_se = FALSE, cinv_limit = 0L,
+              maxit = 25L, workspace = "1gb", compare_baseline = FALSE,
+              max_rounds = 10L, relationship = rel)
+)
+
+rel_fit$coverage
+```
+
+Individuals in the relationship matrix with no plot in the trial — ancestors,
+untested relatives — are kept, and their effects are predicted from their
+relatives and flagged:
+
+```{r, eval = has_asreml}
+table(rel_fit$genetic$Tested)
+```
+
+Every genotype with an *observed* plot must appear in the relationship matrix.
+If one does not, the fit stops and names it rather than dropping it silently.
+
+## Adjusting for a covariate
+
+Interference has a physical cause — plant height, canopy width, root vigour.
+If you measured it, you can ask how much of the competitive effect it explains.
+The covariate enters as a fixed effect twice: once for the plot's own value and
+once summed over exactly the neighbours that supply the competitive effects.
+
+```{r, eval = has_asreml}
+cov_prepared <- prepare_trial_data(
+  sample_single_trial(),
+  list(yield = "Yield_t_ha", geno = "Genotype", row = "Row",
+       column = "Column", rep = "Rep", covariate = "Plant_height_cm")
+)
+cov_nb <- add_neighbours(complete_field_grid(cov_prepared), "rows")
+
+cov_fit <- fit_single_model(
+  cov_nb$data, cov_nb$names,
+  opts = list(structure = "diag", spatial = TRUE, nugget = FALSE,
+              auto_simplify = TRUE, exact_se = FALSE, cinv_limit = 0L,
+              maxit = 25L, workspace = "1gb", compare_baseline = FALSE,
+              max_rounds = 10L, adjust_own_covariate = TRUE)
+)
+
+cov_fit$covariate_terms
+cov_fit$wald
+```
+
+The covariate is centred, so the intercept stays the fitted mean at an average
+covariate value and predicted pure-stand yields remain on the scale a breeder
+expects. A covariate that is missing for more than half the plots is refused:
+adjusting for something mostly absent biases the competitive effects more than
+it corrects them.
+
+## The simplification ladder
+
+Both fitting functions take `auto_simplify`. When `TRUE`, a specification that
+will not converge is replaced by the next model down a nested ladder, giving up
+the least defensible assumption first:
+
+1. a second-order residual process, back to AR1 × AR1;
+2. the `us(2)` covariance, reparameterised as `corgh(2)`;
+3. the independent nugget variance;
+4. the direct–competition covariance, constrained to zero;
+5. the block and then replicate variances;
+6. the spatial residual — last, because dropping it biases everything else.
+
+```{r, eval = has_asreml}
+met_fit$log
+```
+
+Always read this log. A result from step 4 is a different scientific claim from
+a result at step 1, and the difference belongs in your methods section.
+
+## Reproducible scripting
+
+Nothing above needs the Shiny interface. A complete analysis is:
+
+```{r, eval = FALSE}
+library(InterPlotComp)
+
+d  <- prepare_trial_data(read.csv("trial.csv"), map = my_map)
+d  <- complete_field_grid(d)
+nb <- add_neighbours(d, "rows")
+fit <- fit_single_model(nb$data, nb$names, opts = my_opts)
+
+write.csv(fit$genetic, "genotype_values.csv", row.names = FALSE)
+```

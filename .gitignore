@@ -31,6 +31,21 @@ asreml_licence*
 !inst/**/*.csv
 rsconnect/
 
+# ...but the documentation figures are part of the package, not scratch output.
+!man/figures/
+!man/figures/**
+!vignettes/**/*.png
+
+# Build and site output
+docs/
+*.Rcheck/
+*.tar.gz
+..Rcheck/
+CRAN-SUBMISSION
+revdep/
+vignettes/*.html
+vignettes/*_files/
+
 # OS
 .DS_Store
 Thumbs.db

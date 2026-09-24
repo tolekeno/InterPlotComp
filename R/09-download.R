@@ -64,13 +64,33 @@ PREVIEW_BASE_SIZE <- 14    # fallback before the browser reports a width
 #'
 #' @seealso `figure_base_size()` for how the text size is chosen.
 #'
-#' @param plot_fun function returning a ggplot, taking a `base_size` argument
-#' @param file destination path
-#' @param format one of EXPORT_FORMATS
-#' @param width,height size in `units`
-#' @param units "cm" or "in"
-#' @param dpi resolution for raster formats
-#' @noRd
+#' @param plot_fun A function of one argument, `base_size`, returning a
+#'   [ggplot2::ggplot()]. Taking a function rather than a finished plot is what
+#'   lets the text size follow the export width, so a figure saved at 9 cm and
+#'   the same figure at 18 cm both come out legible.
+#' @param file Destination path. The format is taken from `format`, not from
+#'   the file extension.
+#' @param format One of `"png"`, `"tiff"`, `"pdf"`, `"svg"` or `"eps"`.
+#' @param width,height Size in `units`.
+#' @param units `"cm"` or `"in"`.
+#' @param dpi Resolution for the raster formats; ignored for vector ones.
+#' @return The path, invisibly. Called for its side effect of writing the file.
+#' @export
+#' @examples
+#' f <- tempfile(fileext = ".png")
+#' save_figure(
+#'   function(base_size) {
+#'     plot_direct_vs_competition(
+#'       data.frame(Genotype = c("A", "B", "C"),
+#'                  Direct_effect = c(0.5, 0, -0.5),
+#'                  Competition_effect = c(-0.2, 0.1, 0.2),
+#'                  Pure_stand_effect = c(0.1, 0.2, -0.1)),
+#'       base_size = base_size)
+#'   },
+#'   file = f, format = "png", width = 12, height = 9, dpi = 150
+#' )
+#' file.exists(f)
+#' unlink(f)
 save_figure <- function(plot_fun, file, format = "png", width = 18, height = 12,
                         units = "cm", dpi = 600) {
   width_cm <- if (units == "in") width * 2.54 else width

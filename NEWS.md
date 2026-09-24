@@ -1,3 +1,71 @@
+# InterPlotComp 3.8.0
+
+This release turns the working application into a package that can be checked,
+tested and installed like any other. Nothing about the model has changed, but
+two genuine bugs were found in the process and are fixed below.
+
+## Bug fixes
+
+* **A `diag` model fitted with a relationship matrix no longer fails.** With a
+  pedigree or genomic relationship matrix in use, ASReml names the genetic
+  variance parameters `vm(Geno, .kinship)` rather than `Geno`. The independent
+  structure looked for the bare name only, found nothing, and aborted the fit
+  with "Could not reconstruct the independent genetic variances". The `us` and
+  `corgh` structures were unaffected, as was the whole multi-environment path,
+  because they identify their parameters differently.
+
+* **The no-competition baseline is now iterated to convergence** before it is
+  used in the likelihood-ratio test, exactly as the full model already was.
+  Comparing a converged fit against one that had merely run out of iterations
+  used the wrong log-likelihood, and biased the reported p-value by however far
+  the baseline still had to go. Both the single-trial and the multi-environment
+  comparisons were affected.
+
+* `plot_field_map()` now accepts the field coordinates as factors as well as
+  integers, and names a missing value column in its error message. Passing the
+  prepared trial data directly used to fail at draw time with ggplot2's generic
+  "Discrete value supplied to a continuous scale".
+
+## ASReml-R is no longer attached
+
+`load_asreml()` now loads the ASReml namespace instead of calling
+`library(asreml)`. ASReml resolves its special model terms (`str`, `and`, `us`,
+`vm`, `ar1`, `idv`, `dsum`) symbolically in its own formula parser, so
+attaching the package was never necessary. Not attaching it means the package
+no longer masks base generics such as `str()` in the user's session for as long
+as the application runs, and it removes the corresponding `R CMD check` NOTE.
+Verified to reproduce the previous fit to twelve significant figures.
+
+Installation and licensing are also now reported separately: `asreml_installed()`
+tests for the installed directory without loading the namespace, so a licence
+failure is no longer reported as "not installed".
+
+## Package infrastructure
+
+* **Tests.** A testthat suite of 168 tests and 541 expectations covering data
+  preparation, relationship matrices, the model-specification ladder, the
+  plotting layer and the Shiny UI, plus end-to-end single-trial and
+  multi-environment fits that check the model against the parameters the
+  worked examples were simulated from. Line coverage is 69% overall, and 88%
+  to 94% across the data-preparation, figure and model-fitting files; the
+  remainder is the Shiny server modules, which need a driven browser session
+  rather than unit tests. Every test that fits a model skips cleanly where
+  ASReml-R is absent or unlicensed, so the suite is runnable by a contributor
+  without a commercial licence, and completes in well under a minute.
+
+* **Vignettes.** Five: installation and setup, basic workflow, advanced
+  workflow, example analyses, and interpreting the output. Model-fitting chunks
+  are guarded so the vignettes build wherever ASReml-R is unavailable.
+
+* **Documentation.** `CONTRIBUTING.md`, a Contributor Covenant
+  `CODE_OF_CONDUCT.md`, and a pkgdown site configuration.
+
+* **Continuous integration.** `R CMD check` on five platform and R-version
+  combinations, a pkgdown deployment, and test coverage reporting.
+
+* `DESCRIPTION` gains the package website, the copyright-holder role, the
+  literature references, `VignetteBuilder` and the testthat edition.
+
 # InterPlotComp 3.7.3
 
 * **The residual variance is now included in the denominator of

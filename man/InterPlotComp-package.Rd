@@ -35,16 +35,17 @@ fitted, and there is no fallback engine.
 Useful links:
 \itemize{
   \item \url{https://github.com/tolekeno/InterPlotComp}
+  \item \url{https://tolekeno.github.io/InterPlotComp/}
   \item Report bugs at \url{https://github.com/tolekeno/InterPlotComp/issues}
 }
 
 }
 \author{
-\strong{Maintainer}: Tolera Keno \email{tolekeno@gmail.com}
+\strong{Maintainer}: Tolera Keno \email{tolekeno@gmail.com} [copyright holder]
 
 Authors:
 \itemize{
-  \item Tolera Keno \email{tolekeno@gmail.com}
+  \item Tolera Keno \email{tolekeno@gmail.com} [copyright holder]
 }
 
 }

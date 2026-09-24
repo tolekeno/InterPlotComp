@@ -52,16 +52,45 @@ wrap_subtitle <- function(x, base_size = 14) wrap_caption(x, base_size, ref = 76
 #' the physical field, so a fertility gradient, a headland effect or a
 #' mis-entered coordinate is visible immediately.
 #'
-#' @param d data frame with Row, Column and the value column
-#' @param value name of the column to map
-#' @param title,subtitle figure text
-#' @param diverging use the diverging palette (residuals) or sequential (yield)
-#' @param facet facet by environment when TRUE
-#' @noRd
+#' @param d A data frame with `Row`, `Column` and the value column. The
+#'   coordinates are positions on the field, so they are mapped on continuous
+#'   axes; the prepared trial data holds them as factors in `Row`/`Column` and
+#'   as integers in `Row_i`/`Col_i`, and either form is accepted here.
+#' @param value Name of the column to map.
+#' @param title,subtitle Figure text.
+#' @param diverging Use the diverging palette (for residuals and other signed
+#'   quantities) rather than the sequential one (for yields).
+#' @param facet Facet by environment, for a multi-environment trial.
+#' @param fill_label Legend title; defaults to `value`.
+#' @param base_size Base font size in points.
+#' @param caption Optional caption placed under the figure.
+#' @return A [ggplot2::ggplot()] object.
+#' @export
+#' @examples
+#' d <- prepare_trial_data(
+#'   sample_single_trial(),
+#'   list(yield = "Yield_t_ha", geno = "Genotype", row = "Row", column = "Column")
+#' )
+#' plot_field_map(
+#'   data.frame(Row = d$Row_i, Column = d$Col_i, Observed = d$Yield),
+#'   value = "Observed", title = "Observed yield on the field plan"
+#' )
 plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
                            diverging = FALSE, facet = FALSE, base_size = 12,
                            caption = NULL, fill_label = NULL) {
+  if (!value %in% names(d)) {
+    stop("The field map has no '", value, "' column to map.", call. = FALSE)
+  }
+  # A factor coordinate is a discrete value on a continuous scale, which fails
+  # only at draw time with ggplot2's generic "Discrete value supplied to a
+  # continuous scale". Converting through the level *label* keeps the field
+  # position, whereas as.integer() on a factor would return the level code.
+  for (axis in c("Row", "Column")) {
+    if (is.factor(d[[axis]])) d[[axis]] <- as.numeric(as.character(d[[axis]]))
+  }
   d <- d[stats::complete.cases(d[c("Row", "Column")]), , drop = FALSE]
+  if (!nrow(d)) stop("No plots have both a field row and a field column.",
+                     call. = FALSE)
   limit <- max(abs(d[[value]]), na.rm = TRUE)
 
   p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$Column, y = .data$Row,
@@ -109,7 +138,28 @@ plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
 #' effect with an aggressive competitive effect means part of the apparent
 #' advantage was taken from its neighbours and will not carry into a pure
 #' stand or a farmer's field.
-#' @noRd
+#' @param genetic The genotype table from `fit_single_model()$genetic`, or any
+#'   data frame with the same columns.
+#' @param k Number of neighbours per plot, from `fit_single_model()$k`. It sets
+#'   the weight on the competitive effect in the pure-stand value.
+#' @param label_n Number of top genotypes to label.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @seealso [plot_rank_change()] for the consequence of this figure for
+#'   selection.
+#' @export
+#' @examples
+#' g <- data.frame(
+#'   Genotype = sprintf("MZ%03d", 1:12),
+#'   Direct_effect = c(0.8, 0.6, 0.5, 0.3, 0.2, 0, -0.1, -0.3, -0.4, -0.6, -0.7, -0.9),
+#'   Competition_effect = c(-0.3, 0.1, -0.2, 0.2, -0.1, 0.05, 0.1, -0.05, 0.15,
+#'                          0.2, -0.1, 0.25)
+#' )
+#' g$Pure_stand_effect <- g$Direct_effect + 2 * g$Competition_effect
+#' plot_direct_vs_competition(g, k = 2)
 plot_direct_vs_competition <- function(genetic, k = 2, label_n = 12,
                                        base_size = 12, caption = NULL) {
   d <- genetic[stats::complete.cases(genetic[c("Direct_effect", "Competition_effect")]), ]
@@ -167,7 +217,28 @@ plot_direct_vs_competition <- function(genetic, k = 2, label_n = 12,
 #' Error bars use the prediction error variance of the plotted combination, so
 #' the interval around a pure-stand value is correct rather than the far too
 #' wide one obtained by adding the direct and competitive standard errors.
-#' @noRd
+#' @param genetic The genotype table from `fit_single_model()$genetic`, or any
+#'   data frame with the same columns.
+#' @param effect Which quantity to rank on. `"Predicted_pure_stand_yield"`
+#'   is the default because it is what selection acts on; it falls back to
+#'   `"Pure_stand_effect"` when the fitted mean is unavailable.
+#' @param se_col Name of the standard-error column. Chosen from `effect` when
+#'   `NULL`; error bars are omitted if no usable column is present.
+#' @param top_n Number of genotypes to show.
+#' @param conf Confidence level for the error bars.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @export
+#' @examples
+#' g <- data.frame(
+#'   Genotype = sprintf("MZ%03d", 1:10),
+#'   Pure_stand_effect = seq(0.9, -0.9, length.out = 10),
+#'   SE_pure_stand = rep(0.15, 10)
+#' )
+#' plot_ranking(g, effect = "Pure_stand_effect", top_n = 10)
 plot_ranking <- function(genetic,
                          effect = c("Predicted_pure_stand_yield",
                                     "Pure_stand_effect", "Direct_effect"),
@@ -231,7 +302,24 @@ plot_ranking <- function(genetic,
 #' A slope chart between the direct-effect ranking and the pure-stand ranking.
 #' Large crossings are the practical payoff of the competition model: those
 #' genotypes would have been mis-selected on direct effects alone.
-#' @noRd
+#' @param genetic The genotype table from `fit_single_model()$genetic`, or any
+#'   data frame with the same columns.
+#' @param top_n Number of genotypes to show, taken from the top of the
+#'   pure-stand ranking.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @export
+#' @examples
+#' g <- data.frame(
+#'   Genotype = sprintf("MZ%03d", 1:8),
+#'   Rank_direct = c(1, 2, 3, 4, 5, 6, 7, 8),
+#'   Rank_pure_stand = c(4, 1, 6, 2, 8, 3, 5, 7)
+#' )
+#' g$Rank_change <- g$Rank_direct - g$Rank_pure_stand
+#' plot_rank_change(g)
 plot_rank_change <- function(genetic, top_n = 25, base_size = 12, caption = NULL) {
   d <- genetic[stats::complete.cases(genetic[c("Rank_direct", "Rank_pure_stand")]), ]
   d <- utils::head(d[order(d$Rank_pure_stand), ], top_n)
@@ -272,7 +360,25 @@ plot_rank_change <- function(genetic, top_n = 25, base_size = 12, caption = NULL
 }
 
 #' Variance components as a share of the total.
-#' @noRd
+#' @param varcomp The variance-parameter table from
+#'   `fit_single_model()$varcomp` or `fit_met_model()$varcomp`. Bars are
+#'   labelled with the `Interpretation` column where present, so that ASReml
+#'   parameter strings never reach the figure.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @export
+#' @examples
+#' vc <- data.frame(
+#'   Component = c("Geno", "N1", "Column:Row!R"),
+#'   Interpretation = c("Direct genetic variance", "Competitive genetic variance",
+#'                      "Spatial residual variance"),
+#'   Estimate = c(0.27, 0.07, 0.31),
+#'   Pct_of_total = c(41.5, 10.8, 47.7)
+#' )
+#' plot_variance_components(vc)
 plot_variance_components <- function(varcomp, base_size = 12, caption = NULL) {
   d <- varcomp[is.finite(varcomp$Pct_of_total) & varcomp$Pct_of_total > 0, , drop = FALSE]
   if (!nrow(d)) stop("No positive variance components to plot.")
@@ -304,7 +410,23 @@ plot_variance_components <- function(varcomp, base_size = 12, caption = NULL) {
 # ---------------------------------------------------------------------------
 
 #' Residual diagnostics: fitted values, normal quantiles and distribution.
-#' @noRd
+#' @param res The residual table from `fit_single_model()$residuals` or
+#'   `fit_met_model()$residuals`, holding at least `Fitted`, `Residual` and
+#'   `Std_residual`.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @details Four panels are drawn when \pkg{patchwork} is installed; without
+#'   it the residual-versus-fitted panel is returned on its own.
+#' @export
+#' @examples
+#' set.seed(1)
+#' res <- data.frame(Fitted = rnorm(60, 8, 0.5), Residual = rnorm(60, 0, 0.3),
+#'                   Row = rep(1:10, 6), Column = rep(1:6, each = 10))
+#' res$Std_residual <- res$Residual / sd(res$Residual)
+#' plot_residual_diagnostics(res)
 plot_residual_diagnostics <- function(res, base_size = 12, caption = NULL) {
   res <- res[is.finite(res$Residual) & is.finite(res$Fitted), , drop = FALSE]
   if (!nrow(res)) stop("No residuals are available for diagnostics.")
@@ -402,7 +524,21 @@ plot_variogram <- function(v, base_size = 12, caption = NULL) {
 # ---------------------------------------------------------------------------
 
 #' Genetic-correlation heatmap between environments.
-#' @noRd
+#' @param m A square correlation matrix with dimnames, such as
+#'   `fit_met_model()$matrices$direct_cor`.
+#' @param title Figure title, naming the effect the matrix describes.
+#' @param subtitle Optional subtitle.
+#' @param show_values Print the correlation in each cell.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @export
+#' @examples
+#' m <- matrix(c(1, 0.84, 0.64, 0.84, 1, 0.58, 0.64, 0.58, 1), 3, 3,
+#'             dimnames = list(paste0("Env0", 1:3), paste0("Env0", 1:3)))
+#' plot_correlation_heatmap(m, title = "Direct effects")
 plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
                                      caption = NULL, show_values = TRUE) {
   m <- as.matrix(m)
@@ -450,7 +586,23 @@ plot_correlation_heatmap <- function(m, title, subtitle = NULL, base_size = 12,
 }
 
 #' Direct, competitive and pure-stand genetic variance in each environment.
-#' @noRd
+#' @param v The per-environment variance table from
+#'   `fit_met_model()$variance`, holding `Environment`, `Direct_variance`,
+#'   `Competition_variance` and `Pure_stand_variance`.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @export
+#' @examples
+#' v <- data.frame(
+#'   Environment = paste0("Env0", 1:3),
+#'   Direct_variance = c(0.30, 0.40, 0.20),
+#'   Competition_variance = c(0.05, 0.07, 0.04),
+#'   Pure_stand_variance = c(0.22, 0.31, 0.15)
+#' )
+#' plot_environment_variances(v)
 plot_environment_variances <- function(v, base_size = 12, caption = NULL) {
   long <- rbind(
     data.frame(Environment = v$Environment, Effect = "Direct",
@@ -480,7 +632,25 @@ plot_environment_variances <- function(v, base_size = 12, caption = NULL) {
 #' parallel indicate stable genotypes; lines that cross indicate crossover
 #' genotype-by-environment interaction and therefore environment-specific
 #' recommendations.
-#' @noRd
+#' @param values The genotype-by-environment table from
+#'   `fit_met_model()$values`, holding `Genotype`, `Environment`,
+#'   `Pure_stand_effect` and `Status`.
+#' @param top_n Number of genotypes to trace, taken from the top of the
+#'   across-environment mean.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @export
+#' @examples
+#' values <- expand.grid(Genotype = sprintf("MZ%02d", 1:6),
+#'                       Environment = paste0("Env0", 1:3),
+#'                       stringsAsFactors = FALSE)
+#' set.seed(2)
+#' values$Pure_stand_effect <- rnorm(nrow(values), 0, 0.4)
+#' values$Status <- "Estimable"
+#' plot_stability(values, top_n = 6)
 plot_stability <- function(values, top_n = 12, base_size = 12, caption = NULL) {
   d <- values[values$Status == "Estimable", , drop = FALSE]
   mean_effect <- tapply(d$Pure_stand_effect, d$Genotype, mean, na.rm = TRUE)
@@ -564,7 +734,25 @@ plot_fa_summary <- function(fa, base_size = 12, caption = NULL) {
 }
 
 #' Direct against competitive effects, one panel per environment.
-#' @noRd
+#' @param values The genotype-by-environment table from
+#'   `fit_met_model()$values`.
+#' @param k Number of neighbours per plot, from `fit_met_model()$k`.
+#' @param base_size Base font size in points. [save_figure()] chooses this from
+#'   the export width; pass it explicitly only when composing a figure by hand.
+#' @param caption Optional caption placed under the figure, wrapped to the
+#'   plot width.
+#' @return A [ggplot2::ggplot()] object.
+#' @export
+#' @examples
+#' values <- expand.grid(Genotype = sprintf("MZ%02d", 1:8),
+#'                       Environment = paste0("Env0", 1:2),
+#'                       stringsAsFactors = FALSE)
+#' set.seed(3)
+#' values$Direct_effect <- rnorm(nrow(values), 0, 0.5)
+#' values$Competition_effect <- rnorm(nrow(values), 0, 0.2)
+#' values$Pure_stand_effect <- values$Direct_effect + 2 * values$Competition_effect
+#' values$Status <- "Estimable"
+#' plot_met_scatter(values, k = 2)
 plot_met_scatter <- function(values, k = 2, base_size = 12, caption = NULL) {
   d <- values[values$Status == "Estimable", , drop = FALSE]
   ggplot2::ggplot(d, ggplot2::aes(.data$Direct_effect, .data$Competition_effect)) +

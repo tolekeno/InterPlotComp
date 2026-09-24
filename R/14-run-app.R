@@ -114,6 +114,23 @@ run_app <- function(launch.browser = interactive(), port = NULL,
                     host = "127.0.0.1", max_upload_mb = 250, quiet = FALSE,
                     ...) {
   check_required_packages()
+
+  # Validate here rather than letting a bad value surface from inside Shiny,
+  # where the message names an internal argument the caller never set.
+  if (!is.numeric(max_upload_mb) || length(max_upload_mb) != 1L ||
+      !is.finite(max_upload_mb) || max_upload_mb <= 0) {
+    stop("`max_upload_mb` must be a single positive number.", call. = FALSE)
+  }
+  if (!is.null(port) && (!is.numeric(port) || length(port) != 1L ||
+                         !is.finite(port) || port < 1 || port > 65535)) {
+    stop("`port` must be NULL, or a single port number between 1 and 65535.",
+         call. = FALSE)
+  }
+  if (!is.character(host) || length(host) != 1L || !nzchar(host)) {
+    stop("`host` must be a single non-empty address, such as \"127.0.0.1\".",
+         call. = FALSE)
+  }
+
   if (!isTRUE(quiet)) report_optional_packages()
 
   old <- options(shiny.maxRequestSize = max_upload_mb * 1024^2)

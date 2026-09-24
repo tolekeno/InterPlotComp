@@ -281,6 +281,11 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
   if (isTRUE(opts$compare_baseline)) {
     baseline <- tryCatch(fit_one(spec, competition = FALSE), error = function(e) NULL)
     if (!is.null(baseline)) {
+      # The baseline must be iterated to convergence on the same terms as the
+      # full model. A likelihood-ratio test between a converged fit and one
+      # that merely ran out of iterations compares the wrong log-likelihood,
+      # and the p-value is biased by however far the baseline still had to go.
+      baseline <- iterate_to_convergence(baseline, opts$max_rounds %||% 15L)$fit
       comparison <- list(
         table = rbind(
           fit_statistics(fit, "With competition"),

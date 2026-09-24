@@ -1,0 +1,115 @@
+---
+title: "Installation and setup"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Installation and setup}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## What this package is for
+
+In an unbordered single-row-plot trial, every plot is exposed to whatever is
+growing beside it. A vigorous entry takes light, water and nutrients from its
+neighbours, so part of the yield recorded against it was taken from the plots
+either side. The trial rewards it twice: once for its own performance and once
+for depressing the plots it is compared against.
+
+`InterPlotComp` fits the direct–competition model that separates those two
+things. For every genotype it estimates
+
+* the **direct effect** — what the genotype expresses in its own plot;
+* the **competitive effect** — what it does to a neighbouring plot;
+* the **pure-stand value** — what it would express with neighbours like itself,
+  which is the quantity selection should act on.
+
+The whole pipeline is available as functions, and as a Shiny interface launched
+with `run_app()`.
+
+## Installing the package
+
+```{r, eval = FALSE}
+# install.packages("remotes")
+remotes::install_github("tolekeno/InterPlotComp")
+```
+
+The required packages are pulled in automatically. Several optional packages
+each add one feature — interactive figures, higher-quality image export, Excel
+output — and every one of them degrades to a working fallback, so a minimal
+installation is fully usable:
+
+```{r, eval = FALSE}
+remotes::install_github("tolekeno/InterPlotComp", dependencies = TRUE)
+```
+
+R 4.1 or later is required.
+
+## Installing ASReml-R
+
+**ASReml-R is commercial software licensed by [VSNi](https://vsni.co.uk). It is
+not on CRAN, it is not bundled with this package, and it is not installed by
+any of the commands above.** It is the only engine this package has: without a
+working, licensed ASReml-R installation no model can be fitted.
+
+To use the modelling functions you must
+
+1. obtain ASReml-R 4.1 or later from VSNi;
+2. install it into the same R library that runs `InterPlotComp`;
+3. activate its licence, in a plain R session, with
+   `asreml::asreml.license.activate()`.
+
+`InterPlotComp` never reads, writes, embeds, stores or transmits a licence key.
+It uses whatever ASReml installation and already-activated licence exist in the
+R process that runs it.
+
+> **Never commit a licence file or activation key** to a shared or public
+> repository, and never bake one into a container image. The package's
+> `.gitignore` excludes the usual licence file names as a safety net.
+
+## Checking your installation
+
+Everything that does not fit a model works without ASReml, so you can confirm
+the package itself is healthy first:
+
+```{r}
+library(InterPlotComp)
+
+trial <- sample_single_trial()
+str(trial)
+```
+
+To check whether the modelling engine is available:
+
+```{r}
+asreml_ready <- requireNamespace("asreml", quietly = TRUE)
+asreml_ready
+```
+
+That call is also what performs the licence checkout, so `FALSE` means either
+"not installed" or "installed but not licensed". The package reports the two
+cases separately when you try to fit:
+
+```{r, eval = FALSE}
+run_app()   # the interface opens either way and says which applies
+```
+
+The interface deliberately opens without ASReml so that an installation or
+licensing problem is visible immediately, rather than after you have uploaded a
+large file and waited for a fit that was never going to run. Every data panel,
+field plan and design summary works; only the fitting buttons are blocked.
+
+## Where to go next
+
+| Vignette | What it covers |
+|---|---|
+| *Basic workflow* | Preparing a trial and fitting a single-trial model |
+| *Advanced workflow* | Relationship matrices, covariates and the MET model |
+| *Interpreting the output* | What each number means and when not to trust it |
+
+```{r, eval = FALSE}
+vignette("basic-workflow", package = "InterPlotComp")
+```

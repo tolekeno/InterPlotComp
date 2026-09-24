@@ -74,8 +74,21 @@ describe_residual <- function(row_process, col_process) {
 }
 
 #' Is ASReml-R installed in this R library?
+#'
+#' Deliberately tests for the *installed directory* rather than calling
+#' `requireNamespace()`. Loading the namespace is what triggers ASReml's
+#' licence check, and a licence failure would then be reported here as "not
+#' installed", sending the user to fix the wrong problem. Installation and
+#' licensing are separate questions and are answered separately: this function
+#' answers the first, [load_asreml()] answers the second.
 #' @noRd
-asreml_installed <- function() has_pkg("asreml")
+asreml_installed <- local({
+  cache <- NULL
+  function() {
+    if (is.null(cache)) cache <<- nzchar(system.file(package = "asreml"))
+    cache
+  }
+})
 
 #' Installed ASReml-R version, or NA.
 #' @noRd
@@ -84,11 +97,20 @@ asreml_version <- function() {
   tryCatch(as.character(utils::packageVersion("asreml")), error = function(e) NA_character_)
 }
 
-#' Attach ASReml-R, converting a licence failure into an actionable message.
+#' Load the ASReml-R namespace, converting a licence failure into an
+#' actionable message.
 #'
-#' ASReml's special model functions (`str`, `and`, `us`, `corgh`, `facv`, `id`,
-#' `ar1`, `dsum`) are resolved when the model formulae are evaluated, so the
-#' package must be attached rather than merely namespace-loaded.
+#' ASReml's special model terms (`str`, `and`, `us`, `corgh`, `facv`, `id`,
+#' `ar1`, `idv`, `dsum`) are resolved symbolically by ASReml's own formula
+#' parser, not by ordinary evaluation, so the package does **not** need to be
+#' attached to the search path; loading its namespace is enough. That matters
+#' for more than tidiness: attaching a Suggests-level package from inside
+#' package code is contrary to CRAN policy, and it would also mask base
+#' generics such as `str()` in the user's own session for as long as the app
+#' runs.
+#'
+#' Loading the namespace is also what performs the licence checkout, so this
+#' is the point at which an absent or expired licence surfaces.
 #' @noRd
 load_asreml <- function() {
   if (!asreml_installed()) {
@@ -101,7 +123,7 @@ load_asreml <- function() {
     )
   }
   ok <- tryCatch({
-    suppressPackageStartupMessages(library("asreml", character.only = TRUE))
+    suppressPackageStartupMessages(loadNamespace("asreml"))
     TRUE
   }, error = function(e) conditionMessage(e))
 
@@ -312,6 +334,21 @@ variance_component_table <- function(fit, env_levels = NULL) {
   vc[, intersect(keep, names(vc)), drop = FALSE]
 }
 
+#' Match a genetic term's variance parameter, with or without a relationship
+#' matrix.
+#'
+#' Without one, ASReml names the parameter after the bare factor (`Geno`,
+#' `N1`). With one, the factor is wrapped and the parameter becomes
+#' `vm(Geno, .kinship)`. Anchoring on the bare name alone silently failed to
+#' find any variance for a `diag` model fitted with a pedigree or genomic
+#' relationship matrix.
+#'
+#' @param term internal factor name, `"Geno"` or a neighbour name such as `"N1"`
+#' @noRd
+genetic_term_pattern <- function(term) {
+  sprintf("^(%s|vm\\(%s,[^)]*\\))($|!)", term, term)
+}
+
 #' Fail with a consistent, actionable message when extraction is impossible.
 #' @noRd
 stop_extract <- function(what) {
@@ -363,8 +400,8 @@ genetic_covariance_2x2 <- function(fit, structure) {
     # two variances appear under their own term names.
     exclude <- "Rep|Block|units|Row|Column|!R$|residual"
     is_var <- p$Type %in% c("V", "P", "G") & !grepl(exclude, p$Parameter, ignore.case = TRUE)
-    d <- p$Estimate[is_var & grepl("^Geno($|!)", p$Parameter)]
-    c <- p$Estimate[is_var & grepl("^N1($|!)", p$Parameter)]
+    d <- p$Estimate[is_var & grepl(genetic_term_pattern("Geno"), p$Parameter)]
+    c <- p$Estimate[is_var & grepl(genetic_term_pattern("N1"), p$Parameter)]
     if (!length(d) || !length(c)) stop_extract("the independent genetic variances")
     out[1, 1] <- d[1]; out[2, 2] <- c[1]; out[1, 2] <- out[2, 1] <- 0
     note <- "Independent effects: the direct-competition covariance is constrained to zero."

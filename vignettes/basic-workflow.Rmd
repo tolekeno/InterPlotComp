@@ -1,0 +1,201 @@
+---
+title: "Basic workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Basic workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7,
+                      fig.height = 4.5, dpi = 96)
+# Model fitting needs a licensed ASReml-R, which is unavailable on CRAN and on
+# most continuous-integration runners. Those chunks are shown but only
+# evaluated where the engine is actually present.
+has_asreml <- requireNamespace("asreml", quietly = TRUE)
+```
+
+```{r setup}
+library(InterPlotComp)
+```
+
+This vignette runs a complete single-trial analysis, from a raw data frame to a
+ranked list of selection candidates. Everything up to the fit itself runs
+without ASReml-R.
+
+## 1. The data
+
+The package simulates its worked examples from known parameters, so a fitted
+model can be checked against the values that generated the data. The single
+trial is 15 field rows by 12 columns, 60 genotypes in an incomplete block
+design, with AR1 spatial trend, three failed plots and one field position
+physically absent:
+
+```{r}
+trial <- sample_single_trial()
+head(trial)
+dim(trial)
+```
+
+Your own data needs one row per plot and, at minimum, four columns: the
+response, the genotype, and the two **physical field coordinates**. The
+coordinates are not optional and not decorative — they are what makes both the
+spatial model and the neighbour lookup possible.
+
+## 2. Preparing the trial
+
+`prepare_trial_data()` validates the file and reshapes it into the internal
+analysis layout. You tell it which of your columns is which:
+
+```{r}
+prepared <- prepare_trial_data(
+  trial,
+  map = list(yield  = "Yield_t_ha",
+             geno   = "Genotype",
+             row    = "Row",
+             column = "Column",
+             rep    = "Rep",
+             block  = "Block")
+)
+```
+
+It refuses data that cannot support a competition model rather than fitting
+something meaningless — too few observed plots, a single genotype, two plots
+claiming the same field position, an observed yield with no genotype attached.
+It also re-indexes the field coordinates onto a contiguous grid, which matters
+more than it sounds: an entirely absent field row would otherwise collapse out
+of the factor and make AR1 treat the plots either side of it as adjacent.
+
+A per-environment layout summary comes back attached:
+
+```{r}
+attr(prepared, "field_summary")
+```
+
+## 3. Completing the field grid
+
+A separable AR1 × AR1 residual needs a complete rectangle. Missing positions
+are padded with a missing response; they define the residual covariance layout
+and carry no genotype, so they contribute no genetic effect.
+
+```{r}
+complete <- complete_field_grid(prepared)
+c(observed = nrow(prepared), padded = nrow(complete))
+attr(complete, "n_padded")
+```
+
+## 4. Attaching neighbours
+
+`add_neighbours()` records which genotype is growing in each adjacent plot.
+The axis should match the direction in which plots actually compete — for
+single-row plots that is almost always along the field rows.
+
+```{r}
+nb <- add_neighbours(complete, axis = "rows")
+nb$k        # number of neighbours per plot
+nb$label
+```
+
+Border plots legitimately have fewer neighbours; their absent neighbour factors
+stay `NA` and are absorbed as a zero row in the design matrix.
+
+```{r}
+table(nb$data$Neighbour_count)
+```
+
+## 5. Fitting the model
+
+```{r, eval = has_asreml}
+result <- fit_single_model(
+  nb$data, nb$names,
+  opts = list(
+    structure        = "us",    # unstructured direct-competition covariance
+    spatial          = TRUE,    # AR1 x AR1 residual
+    nugget           = TRUE,
+    auto_simplify    = TRUE,    # fall back if the full model will not converge
+    exact_se         = TRUE,
+    cinv_limit       = 5000L,
+    maxit            = 30L,
+    workspace        = "1gb",
+    compare_baseline = TRUE,    # test whether competition improves the fit
+    max_rounds       = 15L
+  )
+)
+
+result$converged
+result$description
+```
+
+`auto_simplify = TRUE` is the safety net. The direct–competition covariance is
+the hardest parameter in the model to estimate, and on a small or awkwardly
+laid-out trial the full specification may not converge. Rather than failing,
+the fit walks down a ladder of nested models, giving up the least defensible
+assumption first, and tells you what it gave up:
+
+```{r, eval = has_asreml}
+result$log
+```
+
+## 6. The variance components
+
+```{r, eval = has_asreml}
+result$variance[, c("Component", "Estimate")]
+```
+
+The data were simulated with a direct variance of 0.36, a competitive variance
+of 0.09 and a direct–competition correlation of −0.55. A negative correlation
+is the case that matters to a breeder: the genotypes that yield most in their
+own plot are the ones suppressing their neighbours, so part of their apparent
+advantage is borrowed and will not survive into a pure stand.
+
+## 7. The genotype table
+
+```{r, eval = has_asreml}
+g <- result$genetic
+head(g[, c("Genotype", "Direct_effect", "Competition_effect",
+           "Pure_stand_effect", "Rank_direct", "Rank_pure_stand",
+           "Rank_change")], 10)
+```
+
+`Rank_change` is the practical output: how far each genotype moves once its
+effect on its neighbours is accounted for.
+
+```{r, eval = has_asreml}
+summary(g$Rank_change)
+sum(abs(g$Rank_change) >= 5)   # genotypes that move five places or more
+```
+
+## 8. Figures
+
+```{r, eval = has_asreml, fig.alt = "Direct effect against competitive effect"}
+plot_direct_vs_competition(g, k = result$k)
+```
+
+The quadrants separate the decisions. A genotype high on the direct axis and
+benign on the competitive axis is an unambiguously good selection. One high on
+both is flattered by the trial.
+
+```{r, eval = has_asreml, fig.alt = "Genotypes ranked by predicted pure-stand performance"}
+plot_ranking(g, top_n = 20)
+```
+
+## 9. Was competition worth modelling?
+
+```{r, eval = has_asreml}
+result$comparison$lrt
+```
+
+This is a likelihood-ratio test against the identical model with the
+competitive effects removed. Both models are iterated to convergence and carry
+the same fixed and residual structure, so the test isolates the competition
+term. If it is not significant, report the simpler model.
+
+## Doing all of this in the interface
+
+```{r, eval = FALSE}
+run_app()
+```
+
+The Shiny interface performs exactly this pipeline, with the diagnostics shown
+alongside each step and every table and figure exportable.

@@ -372,7 +372,25 @@ add_neighbours <- function(d, axis = "rows") {
 #' incomplete neighbour set), and neighbour pairings that repeat across
 #' replicates (so a genotype is nearly always beside the same neighbour, making
 #' direct and competitive effects hard to separate).
-#' @noRd
+#' @param d The trial data with neighbour factors attached, i.e.
+#'   `add_neighbours(...)$data`.
+#' @param neighbour_names The neighbour column names, i.e.
+#'   `add_neighbours(...)$names`.
+#' @return A list with the number of observed plots, the percentage carrying a
+#'   complete neighbour set, the mean number of neighbours, the number of
+#'   border plots, the mean number of distinct neighbour genotypes per
+#'   genotype, the percentage of self-neighbour pairings, the number of
+#'   genotypes and the neighbour count `k`.
+#' @seealso [competition_warnings()], which turns this into plain-English
+#'   warnings.
+#' @export
+#' @examples
+#' d <- prepare_trial_data(
+#'   sample_single_trial(),
+#'   list(yield = "Yield_t_ha", geno = "Genotype", row = "Row", column = "Column")
+#' )
+#' nb <- add_neighbours(complete_field_grid(d), "rows")
+#' competition_diagnostics(nb$data, nb$names)
 competition_diagnostics <- function(d, neighbour_names) {
   observed <- d[!is.na(d$Yield) & !is.na(d$Geno), , drop = FALSE]
   k <- length(neighbour_names)
@@ -401,8 +419,23 @@ competition_diagnostics <- function(d, neighbour_names) {
   )
 }
 
-#' Human-readable warnings derived from `competition_diagnostics()`.
-#' @noRd
+#' Warnings about a layout that cannot support a competition model
+#'
+#' Turns [competition_diagnostics()] into the specific sentences a user needs
+#' to read before trusting a fit. Three things undermine a competition model
+#' and are invisible in a plain data preview: too many border plots, neighbour
+#' pairings that repeat across replicates, and too small a genotype panel.
+#'
+#' @param x The list returned by [competition_diagnostics()].
+#' @return A character vector of warnings, empty when the layout raises none.
+#' @export
+#' @examples
+#' d <- prepare_trial_data(
+#'   sample_single_trial(),
+#'   list(yield = "Yield_t_ha", geno = "Genotype", row = "Row", column = "Column")
+#' )
+#' nb <- add_neighbours(complete_field_grid(d), "rows")
+#' competition_warnings(competition_diagnostics(nb$data, nb$names))
 competition_warnings <- function(x) {
   msg <- character(0)
   if (x$full_neighbour_pct < 50) {

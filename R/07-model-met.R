@@ -341,6 +341,9 @@ fit_met_model <- function(d, neighbour_names, opts, progress = NULL) {
   if (isTRUE(opts$compare_baseline)) {
     baseline <- tryCatch(fit_one(spec, competition = FALSE), error = function(e) NULL)
     if (!is.null(baseline)) {
+      # Iterated to convergence on the same terms as the full model; see
+      # fit_single_model() for why an unconverged baseline invalidates the test.
+      baseline <- iterate_to_convergence(baseline, opts$max_rounds %||% 15L)$fit
       comparison <- list(
         table = rbind(fit_statistics(fit, "With competition G x E"),
                       fit_statistics(baseline, "Direct G x E only")),

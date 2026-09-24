@@ -1,8 +1,9 @@
 Package: InterPlotComp
 Title: Inter-Plot Competition Analysis for Plant Breeding Trials
-Version: 3.7.3
+Version: 3.8.0
 Authors@R:
-    person("Tolera", "Keno", email = "tolekeno@gmail.com", role = c("aut", "cre"))
+    person("Tolera", "Keno", email = "tolekeno@gmail.com",
+           role = c("aut", "cre", "cph"))
 Description: Fits direct-competition mixed models to unbordered single-row-plot
     breeding trials using 'ASReml-R' as the computational engine. For every
     genotype the model separates the effect expressed in its own plot from the
@@ -13,6 +14,9 @@ Description: Fits direct-competition mixed models to unbordered single-row-plot
     publication-quality figure export. Includes a 'Shiny' interface, launched
     with run_app(). 'ASReml-R' is commercial software licensed by VSNi and is
     not supplied by this package; it must be installed and licensed separately.
+    Methods follow Stringer, Cullis and Thompson (2011, Journal of
+    Agricultural, Biological, and Environmental Statistics 16:269-281) and
+    Hunt, Smith, Jordan and Cullis (2013) <doi:10.1007/s13253-012-0117-7>.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:
@@ -33,15 +37,24 @@ Imports:
 Suggests:
     asreml (>= 4.1),
     bsicons,
+    covr,
     ggrepel,
+    knitr,
     patchwork,
     plotly,
     ragg,
+    rmarkdown,
     shinycssloaders,
     shinyWidgets,
     svglite,
+    testthat (>= 3.0.0),
     thematic,
+    withr,
     writexl
-URL: https://github.com/tolekeno/InterPlotComp
+VignetteBuilder: knitr
+URL: https://github.com/tolekeno/InterPlotComp,
+    https://tolekeno.github.io/InterPlotComp/
 BugReports: https://github.com/tolekeno/InterPlotComp/issues
+Config/Needs/website: pkgdown
+Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0

@@ -1,0 +1,111 @@
+url: https://tolekeno.github.io/InterPlotComp/
+
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#3D6B45"
+    base_font: {google: "Source Sans 3"}
+    heading_font: {google: "Source Sans 3"}
+    code_font: {google: "JetBrains Mono"}
+
+home:
+  title: Inter-plot competition analysis for plant breeding trials
+  description: >
+    Separates what a genotype expresses in its own plot from what it imposes on
+    its neighbours, and combines them into the value it would express in a pure
+    stand.
+  sidebar:
+    structure: [links, license, community, citation, authors, dev]
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+
+articles:
+- title: Getting started
+  navbar: ~
+  contents:
+  - InterPlotComp
+  - basic-workflow
+
+- title: Going further
+  navbar: Going further
+  contents:
+  - advanced-workflow
+  - example-analyses
+  - interpreting-output
+
+reference:
+- title: Running the application
+  desc: >
+    The Shiny interface. `run_app()` is the usual entry point; the other two
+    are exposed so a Shiny Server or shinyapps.io deployment can build the
+    application directly.
+  contents:
+  - run_app
+  - app_ui
+  - app_server
+
+- title: Preparing a trial
+  desc: >
+    The scripted pipeline, in the order it is used: validate and reshape the
+    trial, pad the field to a complete rectangle for a spatial residual, then
+    attach the neighbouring genotypes.
+  contents:
+  - prepare_trial_data
+  - complete_field_grid
+  - add_neighbours
+
+- title: Fitting the model
+  desc: >
+    Both fitting functions require a licensed ASReml-R installation, which is
+    commercial software and is not supplied by this package.
+  contents:
+  - fit_single_model
+  - fit_met_model
+
+- title: Genetic relationships
+  desc: >
+    Replace the default assumption of independent genotypes with a pedigree,
+    a kinship matrix or a marker-derived genomic relationship matrix.
+  contents:
+  - build_relationship
+
+- title: Diagnostics
+  desc: >
+    Whether the field layout can actually support a competition model. Both
+    are worth running before a fit, not after.
+  contents:
+  - competition_diagnostics
+  - competition_warnings
+
+- title: Figures
+  desc: >
+    Every figure is a ggplot2 object, so it can be themed, combined or saved
+    like any other. `save_figure()` scales the text to the export size.
+  contents:
+  - plot_field_map
+  - plot_direct_vs_competition
+  - plot_ranking
+  - plot_rank_change
+  - plot_variance_components
+  - plot_residual_diagnostics
+  - plot_correlation_heatmap
+  - plot_environment_variances
+  - plot_stability
+  - plot_met_scatter
+  - save_figure
+
+- title: Worked example data
+  desc: >
+    Simulated from known parameters and from a fixed seed, so a fitted model
+    can be checked against the values that generated the data.
+  contents:
+  - sample_single_trial
+  - sample_met_trial
+  - sample_pedigree
+
+- title: Package
+  contents:
+  - InterPlotComp-package

@@ -1,12 +1,22 @@
-# Inter-plot Competition Analysis for Plant Breeding Trials
+# InterPlotComp
 
-A Shiny application that fits **direct–competition mixed models** to unbordered
-single-row-plot breeding trials, using **ASReml-R** as its computational engine.
-It estimates, for every genotype, the effect it expresses in its own plot, the
-effect it imposes on its neighbours, and the value it would express in a pure
-stand — in a single trial or across a series of environments.
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/tolekeno/InterPlotComp/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tolekeno/InterPlotComp/actions/workflows/R-CMD-check.yaml)
+[![pkgdown](https://github.com/tolekeno/InterPlotComp/actions/workflows/pkgdown.yaml/badge.svg)](https://tolekeno.github.io/InterPlotComp/)
+[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+<!-- badges: end -->
 
-Version 3.1.0.
+**Inter-plot competition analysis for plant breeding trials.**
+
+An R package, with a Shiny interface, that fits **direct–competition mixed
+models** to unbordered single-row-plot breeding trials, using **ASReml-R** as
+its computational engine. It estimates, for every genotype, the effect it
+expresses in its own plot, the effect it imposes on its neighbours, and the
+value it would express in a pure stand — in a single trial or across a series
+of environments.
+
+Documentation: <https://tolekeno.github.io/InterPlotComp/>
 
 ---
 
@@ -44,6 +54,16 @@ too if you want the full interface:
 ```r
 remotes::install_github("tolekeno/InterPlotComp", dependencies = TRUE)
 ```
+
+`install_github()` does not build vignettes by default. To get them locally:
+
+```r
+remotes::install_github("tolekeno/InterPlotComp", dependencies = TRUE,
+                        build_vignettes = TRUE)
+```
+
+They are also on the [package website](https://tolekeno.github.io/InterPlotComp/),
+so building them is optional.
 
 **ASReml-R is not installed by any of this.** It is commercial software from
 VSNi, is not on CRAN, and must be installed and licensed separately in the same
@@ -506,6 +526,109 @@ R/11-mod-single.R     single-trial workspace
 R/12-mod-met.R        multi-environment workspace
 R/13-mod-guide.R      guide and about
 R/14-run-app.R        app_ui(), app_server(), run_app()
+tests/testthat/       unit and end-to-end tests
+vignettes/            long-form documentation
+.github/workflows/    R CMD check, pkgdown, coverage
+_pkgdown.yml          package website configuration
+```
+
+---
+
+## Documentation
+
+Five vignettes cover the package end to end:
+
+```r
+vignette("InterPlotComp",        package = "InterPlotComp")  # installation and setup
+vignette("basic-workflow",       package = "InterPlotComp")
+vignette("advanced-workflow",    package = "InterPlotComp")  # relationships, covariates, MET
+vignette("example-analyses",     package = "InterPlotComp")
+vignette("interpreting-output",  package = "InterPlotComp")  # and when not to trust it
+```
+
+They are also on the [package website](https://tolekeno.github.io/InterPlotComp/).
+
+---
+
+## What it looks like
+
+Every figure below is real output from the packaged worked example, produced by
+the code shown beside it.
+
+**The central figure of a competition analysis.** Each genotype is placed by
+what it expresses in its own plot against what it does to its neighbours. The
+downward slope is the finding that matters: the highest-yielding entries are
+the ones suppressing the plots they are compared against.
+
+```r
+plot_direct_vs_competition(fit$genetic, k = fit$k)
+```
+
+![Direct effect against competitive effect, showing a clear negative relationship](man/figures/README-direct-vs-competition.png)
+
+**Does it change who you select?**
+
+```r
+plot_rank_change(fit$genetic, top_n = 20)
+```
+
+![Slope chart of rank on the direct effect against rank on the pure-stand value](man/figures/README-rank-change.png)
+
+**The field plan**, the single most useful diagnostic for a spatially analysed
+trial — a fertility gradient, a headland effect or a mis-entered coordinate is
+visible immediately.
+
+```r
+plot_field_map(field, "Observed", title = "Observed yield on the field plan")
+```
+
+![Heatmap of observed yield on the physical field layout](man/figures/README-field-plan.png)
+
+The Shiny interface presents all of this across three workspaces — **Single
+trial**, **Multi-environment** and **Guide** — with every table and figure
+exportable:
+
+```r
+InterPlotComp::run_app()
+```
+
+---
+
+## Testing
+
+```r
+devtools::test()
+```
+
+168 tests, 541 expectations, about 40 seconds.
+
+The suite runs without ASReml-R: every test that fits a model skips cleanly
+when the engine is absent or unlicensed, so the package is contributable
+without a commercial licence. With a licence available, the end-to-end tests
+additionally check that the fitted model recovers the parameters the worked
+examples were simulated from.
+
+Line coverage is 69% overall and 88-94% across the data-preparation, figure
+and model-fitting files. The balance is the Shiny server modules, which need a
+driven browser session rather than unit tests.
+
+---
+
+## Contributing
+
+Bug reports and pull requests are welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md). Please note that this project is released
+with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md); by participating you
+agree to abide by its terms.
+
+**Never commit an ASReml licence file or activation key.**
+
+---
+
+## Citation
+
+```r
+citation("InterPlotComp")
 ```
 
 ---
