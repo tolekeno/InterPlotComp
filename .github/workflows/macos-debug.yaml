@@ -128,6 +128,34 @@ jobs:
           rm -rf InterPlotComp.Rcheck
           R CMD check --no-manual --as-cran InterPlotComp_*.tar.gz
 
+      # Round 3. Tests pass under a plain check but fail under --as-cran with
+      # "save_figure writes each supported raster format / Expected
+      # file.exists(f) to be TRUE". Probe the function directly and push every
+      # detail through ::error:: annotations, which are public.
+      - name: PHASE probe save_figure
+        if: always()
+        continue-on-error: true
+        run: |
+          R CMD INSTALL --no-docs . >/dev/null 2>&1 || true
+          cat > probe.R <<'PROBE'
+          library(InterPlotComp)
+          message('cairo=', capabilities('cairo'), ' aqua=', capabilities('aqua'), ' X11=', capabilities('X11'))
+          message('ragg=', requireNamespace('ragg', quietly = TRUE), ' svglite=', requireNamespace('svglite', quietly = TRUE))
+          message('device option=', getOption('device'))
+          message('R_DEFAULT_DEVICE=', Sys.getenv('R_DEFAULT_DEVICE'), ' screen_device=', Sys.getenv('_R_CHECK_SCREEN_DEVICE_'))
+          message('tempdir=', tempdir())
+          pfun <- function(bs) ggplot2::ggplot(data.frame(x = 1:5, y = 1:5), ggplot2::aes(x, y)) + ggplot2::geom_point()
+          for (fmt in c('png', 'pdf')) {
+            f <- file.path(tempdir(), paste0('probe.', fmt))
+            r <- tryCatch({ InterPlotComp::save_figure(pfun, f, format = fmt, width = 12, height = 8, dpi = 100); 'no condition' },
+                          error = function(e) paste('ERROR:', conditionMessage(e)),
+                          warning = function(w) paste('WARNING:', conditionMessage(w)))
+            message(fmt, ': ', r, ' | exists=', file.exists(f), ' | size=', if (file.exists(f)) file.size(f) else NA)
+          }
+          message('tempdir contents: ', paste(list.files(tempdir()), collapse = ', '))
+          PROBE
+          _R_CHECK_SCREEN_DEVICE_=warn R_DEFAULT_DEVICE=pdf Rscript probe.R 2>&1 | while IFS= read -r l; do echo "::error::PROBE $l"; done
+
       # The log is unreadable without a token, but a failing step's own stdout
       # becomes an annotation, which is public. Re-emit whatever the check
       # recorded so the cause reaches somewhere readable.
