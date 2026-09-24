@@ -157,3 +157,33 @@ test_that("run_app validates its arguments before starting Shiny", {
   expect_error(run_app(host = ""), "host")
   expect_error(run_app(host = c("a", "b")), "host")
 })
+
+test_that("figure_devices offers a fallback for every raster and vector format", {
+  for (fmt in c("png", "tiff", "pdf", "eps")) {
+    d <- figure_devices(fmt)
+    expect_gt(length(d), 0L)
+    expect_true(all(vapply(d, is.function, logical(1))), info = fmt)
+    expect_false(anyDuplicated(names(d)) > 0)
+  }
+  # svg has no guaranteed device: both candidates are conditional.
+  expect_type(figure_devices("svg"), "list")
+  expect_error(figure_devices("bmp"), "Unsupported export format")
+})
+
+test_that("save_figure reports every device it tried when none can write", {
+  # A device that opens nothing reproduces the macOS cairo_pdf failure, where
+  # capabilities("cairo") is TRUE but no file ever appears.
+  local_mocked_bindings(
+    figure_devices = function(format) {
+      list(`fake::silent` = function(filename, ...) {
+        grDevices::pdf(file = nullfile())
+      })
+    }
+  )
+  p <- function(bs) ggplot2::ggplot(data.frame(x = 1, y = 1), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+  f <- withr::local_tempfile(fileext = ".png")
+  expect_error(save_figure(p, f, format = "png"), "Could not write a png figure")
+  expect_error(save_figure(p, f, format = "png"), "fake::silent")
+  expect_false(file.exists(f))
+})

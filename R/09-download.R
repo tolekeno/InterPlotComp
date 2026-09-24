@@ -101,41 +101,90 @@ save_figure <- function(plot_fun, file, format = "png", width = 18, height = 12,
 
   args <- list(filename = file, plot = p, width = width, height = height,
                units = units, dpi = dpi, bg = "white")
-
-  device <- switch(
-    format,
-    png  = if (has_pkg("ragg")) ragg::agg_png else grDevices::png,
-    # `ggsave()` inspects a device function's formals to decide whether to pass
-    # `res` and `units`. A `...`-only wrapper therefore silently loses both and
-    # produces a zero-dimension canvas, so the formals are spelled out.
-    tiff = if (has_pkg("ragg")) {
-      function(filename, width, height, units = "in", res = 300, ...) {
-        ragg::agg_tiff(filename = filename, width = width, height = height,
-                       units = units, res = res, compression = "lzw", ...)
-      }
-    } else {
-      function(filename, width, height, units = "in", res = 300, ...) {
-        grDevices::tiff(filename = filename, width = width, height = height,
-                        units = units, res = res, compression = "lzw",
-                        type = "cairo", ...)
-      }
-    },
-    pdf  = if (capabilities("cairo")) grDevices::cairo_pdf else grDevices::pdf,
-    svg  = if (has_pkg("svglite")) svglite::svglite else grDevices::svg,
-    eps  = if (capabilities("cairo")) grDevices::cairo_ps else {
-      function(filename, ...) grDevices::postscript(file = filename, ...,
-                                                    onefile = FALSE,
-                                                    horizontal = FALSE,
-                                                    paper = "special")
-    },
-    stop("Unsupported export format: ", format, call. = FALSE)
-  )
-  args$device <- device
   # Vector devices take no dpi; passing it warns on some devices.
   if (format %in% c("pdf", "svg", "eps")) args$dpi <- NULL
 
-  do.call(ggplot2::ggsave, args)
-  invisible(file)
+  candidates <- figure_devices(format)
+  failures <- character(0)
+
+  for (nm in names(candidates)) {
+    args$device <- candidates[[nm]]
+    if (file.exists(file)) unlink(file)
+
+    err <- tryCatch({
+      suppressWarnings(do.call(ggplot2::ggsave, args))
+      NULL
+    }, error = function(e) conditionMessage(e))
+
+    # A device can fail without raising: `cairo_pdf()` on a macOS build whose
+    # X11 libraries are absent reports capabilities("cairo") as TRUE, then
+    # quietly writes nothing. Trusting ggsave's return value would let an empty
+    # or missing file through as a successful export.
+    if (is.null(err) && file.exists(file) && file.size(file) > 0) {
+      return(invisible(file))
+    }
+    failures <- c(failures, sprintf(
+      "%s: %s", nm, err %||% "produced no output"))
+  }
+
+  if (file.exists(file)) unlink(file)
+  stop("Could not write a ", format, " figure. Devices tried:\n  ",
+       paste(failures, collapse = "\n  "), call. = FALSE)
+}
+
+#' Candidate graphics devices for one export format, best first.
+#'
+#' Returned as an ordered, named list so [save_figure()] can fall back when a
+#' device is unusable. Availability cannot be settled by asking: on macOS
+#' `capabilities("cairo")` reports what R was compiled with, while `cairo_pdf()`
+#' additionally needs the X11 libraries at run time and fails silently without
+#' them. The only reliable test is to draw and then look for the file.
+#'
+#' @param format one of `EXPORT_FORMATS`
+#' @noRd
+figure_devices <- function(format) {
+  # `ggsave()` inspects a device function's formals to decide whether to pass
+  # `res` and `units`. A `...`-only wrapper therefore silently loses both and
+  # produces a zero-dimension canvas, so the formals are spelled out.
+  tiff_via <- function(fun, ...) {
+    extra <- list(...)
+    function(filename, width, height, units = "in", res = 300, ...) {
+      do.call(fun, c(list(filename = filename, width = width, height = height,
+                          units = units, res = res), extra, list(...)))
+    }
+  }
+
+  switch(
+    format,
+    png = c(
+      if (has_pkg("ragg")) list(`ragg::agg_png` = ragg::agg_png),
+      list(`grDevices::png` = grDevices::png)
+    ),
+    tiff = c(
+      if (has_pkg("ragg")) {
+        list(`ragg::agg_tiff` = tiff_via(ragg::agg_tiff, compression = "lzw"))
+      },
+      list(`grDevices::tiff (cairo)` =
+             tiff_via(grDevices::tiff, compression = "lzw", type = "cairo"),
+           `grDevices::tiff` = tiff_via(grDevices::tiff, compression = "lzw"))
+    ),
+    pdf = c(
+      if (capabilities("cairo")) list(`grDevices::cairo_pdf` = grDevices::cairo_pdf),
+      list(`grDevices::pdf` = grDevices::pdf)
+    ),
+    svg = c(
+      if (has_pkg("svglite")) list(`svglite::svglite` = svglite::svglite),
+      if (capabilities("cairo")) list(`grDevices::svg` = grDevices::svg)
+    ),
+    eps = c(
+      if (capabilities("cairo")) list(`grDevices::cairo_ps` = grDevices::cairo_ps),
+      list(`grDevices::postscript` = function(filename, ...) {
+        grDevices::postscript(file = filename, ..., onefile = FALSE,
+                              horizontal = FALSE, paper = "special")
+      })
+    ),
+    stop("Unsupported export format: ", format, call. = FALSE)
+  )
 }
 
 #' Export several figures to one multi-page PDF.
