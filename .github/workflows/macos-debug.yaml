@@ -1,12 +1,17 @@
 # TEMPORARY diagnostic workflow.
 #
-# The macOS release job failed with "R CMD check found ERRORs" while Ubuntu
-# (devel/release/oldrel-1) and Windows all passed. Reading the job log needs an
-# authenticated token, which is not available here, but each *step's* pass/fail
-# is public. So the check is split into its three independent phases, each
-# allowed to fail, and which step goes red identifies the phase at fault.
+# macOS fails `R CMD check --as-cran` with
+#   Failure (test-app.R:114:5): save_figure writes each supported raster format
+#   Expected file.exists(f) to be TRUE
+# so save_figure() returns without error yet leaves no file. Every other
+# platform passes, and a plain (non-as-cran) check on macOS passes too.
 #
-# Delete this file once the macOS failure is understood and fixed.
+# Reading the job log needs a token this environment does not have, but
+# ::error:: annotations are public. Earlier rounds emitted so many annotations
+# that the interesting lines were crowded out, so this run does nothing except
+# the probe, and reports one line per format.
+#
+# Delete this file once the macOS failure is fixed.
 on:
   workflow_dispatch:
   push:
@@ -24,12 +29,9 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       _R_CHECK_FORCE_SUGGESTS_: false
-      NOT_CRAN: true
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: r-lib/actions/setup-pandoc@v2
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -40,134 +42,35 @@ jobs:
         with:
           dependencies: '"hard"'
           extra-packages: |
-            any::rcmdcheck
-            any::bsicons
-            any::covr
-            any::ggrepel
-            any::knitr
-            any::patchwork
-            any::plotly
             any::ragg
-            any::rmarkdown
-            any::shinycssloaders
-            any::shinyWidgets
             any::svglite
             any::testthat
-            any::thematic
             any::withr
-            any::writexl
-          needs: check
+            local::.
 
-      - name: Report the environment
+      - name: Probe save_figure
+        shell: bash
         run: |
-          cat(R.version.string, "\n")
-          cat("cairo:", capabilities("cairo"), " X11:", capabilities("X11"), "\n")
-          cat("ragg:", requireNamespace("ragg", quietly = TRUE),
-              " svglite:", requireNamespace("svglite", quietly = TRUE),
-              " patchwork:", requireNamespace("patchwork", quietly = TRUE),
-              " ggrepel:", requireNamespace("ggrepel", quietly = TRUE), "\n")
-          cat("asreml:", nzchar(system.file(package = "asreml")), "\n")
-          cat("locale:", Sys.getlocale("LC_CTYPE"), "\n")
-        shell: Rscript {0}
-
-      - name: PHASE build
-        id: build
-        continue-on-error: true
-        run: R CMD build --no-build-vignettes .
-
-      - name: PHASE examples only
-        id: examples
-        continue-on-error: true
-        run: R CMD check --no-tests --no-vignettes --no-manual InterPlotComp_*.tar.gz
-
-      - name: PHASE tests only
-        id: tests
-        continue-on-error: true
-        run: |
-          rm -rf InterPlotComp.Rcheck
-          R CMD check --no-examples --no-vignettes --no-manual InterPlotComp_*.tar.gz
-
-      - name: PHASE vignettes only
-        id: vignettes
-        continue-on-error: true
-        run: |
-          rm -rf InterPlotComp.Rcheck InterPlotComp_*.tar.gz
-          R CMD build .
-          R CMD check --no-examples --no-tests --no-manual InterPlotComp_*.tar.gz
-
-      # Round 2. Every phase above passed, so the cause is one of the two
-      # things the real workflow does that the phases did not: the `--as-cran`
-      # flag, and `--compact-vignettes=gs+qpdf`, which needs ghostscript and
-      # qpdf that a macOS runner may not carry.
-      - name: Are gs and qpdf present?
-        if: always()
-        run: |
-          echo "gs:    $(command -v gs || echo MISSING)"
-          echo "qpdf:  $(command -v qpdf || echo MISSING)"
-          Rscript -e 'cat("R_GSCMD =", Sys.getenv("R_GSCMD"), "| find_gs_cmd =", tools::find_gs_cmd())'
-
-      - name: PHASE build with compact-vignettes
-        id: compact
-        continue-on-error: true
-        run: |
-          rm -rf InterPlotComp.Rcheck InterPlotComp_*.tar.gz
-          R CMD build --no-manual --compact-vignettes=gs+qpdf .
-
-      - name: PHASE full check WITHOUT as-cran
-        id: plain
-        continue-on-error: true
-        run: |
-          rm -rf InterPlotComp.Rcheck InterPlotComp_*.tar.gz
-          R CMD build .
-          R CMD check --no-manual InterPlotComp_*.tar.gz
-
-      - name: PHASE full check WITH as-cran
-        id: ascran
-        continue-on-error: true
-        run: |
-          rm -rf InterPlotComp.Rcheck
-          R CMD check --no-manual --as-cran InterPlotComp_*.tar.gz
-
-      # Round 3. Tests pass under a plain check but fail under --as-cran with
-      # "save_figure writes each supported raster format / Expected
-      # file.exists(f) to be TRUE". Probe the function directly and push every
-      # detail through ::error:: annotations, which are public.
-      - name: PHASE probe save_figure
-        if: always()
-        continue-on-error: true
-        run: |
-          R CMD INSTALL --no-docs . >/dev/null 2>&1 || true
           cat > probe.R <<'PROBE'
+          report <- function(...) cat("::error::PROBE ", paste0(...), "\n", sep = "")
           library(InterPlotComp)
-          message('cairo=', capabilities('cairo'), ' aqua=', capabilities('aqua'), ' X11=', capabilities('X11'))
-          message('ragg=', requireNamespace('ragg', quietly = TRUE), ' svglite=', requireNamespace('svglite', quietly = TRUE))
-          message('device option=', getOption('device'))
-          message('R_DEFAULT_DEVICE=', Sys.getenv('R_DEFAULT_DEVICE'), ' screen_device=', Sys.getenv('_R_CHECK_SCREEN_DEVICE_'))
-          message('tempdir=', tempdir())
+          report("ggplot2=", as.character(packageVersion("ggplot2")),
+                 " ragg=", as.character(packageVersion("ragg")),
+                 " cairo=", capabilities("cairo"))
           pfun <- function(bs) ggplot2::ggplot(data.frame(x = 1:5, y = 1:5), ggplot2::aes(x, y)) + ggplot2::geom_point()
-          for (fmt in c('png', 'pdf')) {
-            f <- file.path(tempdir(), paste0('probe.', fmt))
-            r <- tryCatch({ InterPlotComp::save_figure(pfun, f, format = fmt, width = 12, height = 8, dpi = 100); 'no condition' },
-                          error = function(e) paste('ERROR:', conditionMessage(e)),
-                          warning = function(w) paste('WARNING:', conditionMessage(w)))
-            message(fmt, ': ', r, ' | exists=', file.exists(f), ' | size=', if (file.exists(f)) file.size(f) else NA)
+          for (fmt in c("png", "pdf")) {
+            f <- file.path(tempdir(), paste0("probe.", fmt))
+            cond <- "none"
+            val <- withCallingHandlers(
+              tryCatch(InterPlotComp::save_figure(pfun, f, format = fmt, width = 12, height = 8, dpi = 100),
+                       error = function(e) { cond <<- paste("ERROR:", conditionMessage(e)); NA }),
+              warning = function(w) { cond <<- paste("WARNING:", conditionMessage(w)); invokeRestart("muffleWarning") })
+            report(fmt, " returned=", paste(as.character(val), collapse = ","),
+                   " cond=", cond, " exists=", file.exists(f),
+                   " size=", if (file.exists(f)) file.size(f) else -1)
           }
-          message('tempdir contents: ', paste(list.files(tempdir()), collapse = ', '))
+          # What did ggsave actually put on disk, under any name?
+          report("tempdir files: ", paste(list.files(tempdir(), recursive = TRUE), collapse = " | "))
+          report("cwd files: ", paste(list.files(".", pattern = "[.](png|pdf)$"), collapse = " | "))
           PROBE
-          _R_CHECK_SCREEN_DEVICE_=warn R_DEFAULT_DEVICE=pdf Rscript probe.R 2>&1 | while IFS= read -r l; do echo "::error::PROBE $l"; done
-
-      # The log is unreadable without a token, but a failing step's own stdout
-      # becomes an annotation, which is public. Re-emit whatever the check
-      # recorded so the cause reaches somewhere readable.
-      - name: Surface the check log as annotations
-        if: always()
-        run: |
-          for f in InterPlotComp.Rcheck/00check.log InterPlotComp.Rcheck/00install.out; do
-            [ -f "$f" ] || continue
-            echo "::group::$f"
-            sed -n '1,400p' "$f"
-            echo "::endgroup::"
-            grep -nE "ERROR|WARNING" -A 12 "$f" | head -80 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-          done
+          Rscript probe.R
