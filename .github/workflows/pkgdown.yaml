@@ -27,9 +27,31 @@ jobs:
         with:
           use-public-rspm: true
 
+      # `asreml` is commercial and is in no repository, so pak cannot resolve
+      # it and `dependencies: all` fails outright. Suggests are skipped
+      # wholesale and every one that checking actually needs is named here.
+      # The ASReml-gated tests and vignette chunks skip themselves.
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::pkgdown, local::.
+          dependencies: '"hard"'
+          extra-packages: |
+            any::pkgdown
+            local::.
+            any::bsicons
+            any::covr
+            any::ggrepel
+            any::knitr
+            any::patchwork
+            any::plotly
+            any::ragg
+            any::rmarkdown
+            any::shinycssloaders
+            any::shinyWidgets
+            any::svglite
+            any::testthat
+            any::thematic
+            any::withr
+            any::writexl
           needs: website
 
       # ASReml-R is unavailable here, so every fitting chunk in the vignettes

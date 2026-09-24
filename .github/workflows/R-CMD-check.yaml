@@ -46,11 +46,30 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
+      # `asreml` is commercial and is in no repository, so pak cannot resolve
+      # it and `dependencies: all` fails outright. Suggests are skipped
+      # wholesale and every one that checking actually needs is named here.
+      # The ASReml-gated tests and vignette chunks skip themselves.
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          # asreml is not in any public repository, so it is excluded from the
-          # dependency resolution rather than failing the install.
-          extra-packages: any::rcmdcheck
+          dependencies: '"hard"'
+          extra-packages: |
+            any::rcmdcheck
+            any::bsicons
+            any::covr
+            any::ggrepel
+            any::knitr
+            any::patchwork
+            any::plotly
+            any::ragg
+            any::rmarkdown
+            any::shinycssloaders
+            any::shinyWidgets
+            any::svglite
+            any::testthat
+            any::thematic
+            any::withr
+            any::writexl
           needs: check
 
       - uses: r-lib/actions/check-r-package@v2
