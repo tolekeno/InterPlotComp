@@ -95,6 +95,41 @@ jobs:
           R CMD build .
           R CMD check --no-examples --no-tests --no-manual InterPlotComp_*.tar.gz
 
+      # Round 2. Every phase above passed, so the cause is one of the two
+      # things the real workflow does that the phases did not: the `--as-cran`
+      # flag, and `--compact-vignettes=gs+qpdf`, which needs ghostscript and
+      # qpdf that a macOS runner may not carry.
+      - name: Are gs and qpdf present?
+        if: always()
+        run: |
+          echo "gs:    $(command -v gs || echo MISSING)"
+          echo "qpdf:  $(command -v qpdf || echo MISSING)"
+          Rscript -e 'cat("R_GSCMD:", Sys.getenv("R_GSCMD"), "
+"); cat("find_gs_cmd:", tools::find_gs_cmd(), "
+")'
+
+      - name: PHASE build with compact-vignettes
+        id: compact
+        continue-on-error: true
+        run: |
+          rm -rf InterPlotComp.Rcheck InterPlotComp_*.tar.gz
+          R CMD build --no-manual --compact-vignettes=gs+qpdf .
+
+      - name: PHASE full check WITHOUT as-cran
+        id: plain
+        continue-on-error: true
+        run: |
+          rm -rf InterPlotComp.Rcheck InterPlotComp_*.tar.gz
+          R CMD build .
+          R CMD check --no-manual InterPlotComp_*.tar.gz
+
+      - name: PHASE full check WITH as-cran
+        id: ascran
+        continue-on-error: true
+        run: |
+          rm -rf InterPlotComp.Rcheck
+          R CMD check --no-manual --as-cran InterPlotComp_*.tar.gz
+
       # The log is unreadable without a token, but a failing step's own stdout
       # becomes an annotation, which is public. Re-emit whatever the check
       # recorded so the cause reaches somewhere readable.
