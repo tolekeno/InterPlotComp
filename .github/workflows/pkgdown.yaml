@@ -1,4 +1,13 @@
-# Builds the package website and publishes it to GitHub Pages.
+# Builds the package website and deploys it straight to GitHub Pages.
+#
+# This deploys through the official Pages actions rather than by pushing a
+# gh-pages branch. The branch approach failed in practice: GitHub does not
+# trigger downstream builds for pushes made with GITHUB_TOKEN, which is what a
+# deploy action uses, so the site only ever published when someone pushed that
+# branch by hand. deploy-pages publishes the artifact directly and does not
+# depend on a push event at all.
+#
+# Requires Settings -> Pages -> Source = "GitHub Actions".
 on:
   push:
     branches: [main, master]
@@ -8,16 +17,27 @@ on:
 
 name: pkgdown
 
-permissions: read-all
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deployments race; queue instead of cancelling, so a finished
+# build is not discarded half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   pkgdown:
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      contents: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -29,8 +49,8 @@ jobs:
 
       # `asreml` is commercial and is in no repository, so pak cannot resolve
       # it and `dependencies: all` fails outright. Suggests are skipped
-      # wholesale and every one that checking actually needs is named here.
-      # The ASReml-gated tests and vignette chunks skip themselves.
+      # wholesale and every one the site actually needs is named here.
+      # The ASReml-gated vignette chunks skip themselves.
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           dependencies: '"hard"'
@@ -61,9 +81,17 @@ jobs:
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4.5.0
+      - name: Fail if the site did not build
+        run: |
+          test -f docs/index.html || { echo "docs/index.html missing"; exit 1; }
+          echo "pages built: $(find docs -name '*.html' | wc -l) html files"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
         with:
-          clean: false
-          branch: gh-pages
-          folder: docs
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
