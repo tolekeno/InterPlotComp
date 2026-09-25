@@ -18,5 +18,5 @@ list(data, names, k, label)
 Each neighbour column N1..Nk holds the genotype growing in the adjacent
 plot, as a factor sharing the genotype level set. Absent neighbours (field
 borders, padded positions, unplanted plots) stay NA and are absorbed by
-`na.method(x = "include")` as a zero row in the design matrix.
+\code{na.method(x = "include")} as a zero row in the design matrix.
 }

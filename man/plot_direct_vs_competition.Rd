@@ -13,22 +13,22 @@ plot_direct_vs_competition(
 )
 }
 \arguments{
-\item{genetic}{The genotype table from `fit_single_model()$genetic`, or any
+\item{genetic}{The genotype table from \code{fit_single_model()$genetic}, or any
 data frame with the same columns.}
 
-\item{k}{Number of neighbours per plot, from `fit_single_model()$k`. It sets
+\item{k}{Number of neighbours per plot, from \code{fit_single_model()$k}. It sets
 the weight on the competitive effect in the pure-stand value.}
 
 \item{label_n}{Number of top genotypes to label.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
 plot width.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 The central figure of a competition analysis. The quadrants separate the
@@ -49,6 +49,6 @@ g$Pure_stand_effect <- g$Direct_effect + 2 * g$Competition_effect
 plot_direct_vs_competition(g, k = 2)
 }
 \seealso{
-[plot_rank_change()] for the consequence of this figure for
-  selection.
+\code{\link[=plot_rank_change]{plot_rank_change()}} for the consequence of this figure for
+selection.
 }

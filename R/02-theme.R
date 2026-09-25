@@ -179,7 +179,7 @@ css_tokens <- function(pal, selector) {
 #'
 #' Bootstrap's own variables are set for the light mode; the dark mode is
 #' handled by overriding `--bs-*` under `[data-bs-theme="dark"]` in
-#' [app_css()], which keeps both modes in one place.
+#' `app_css()`, which keeps both modes in one place.
 #' @noRd
 app_theme <- function() {
   bslib::bs_theme(

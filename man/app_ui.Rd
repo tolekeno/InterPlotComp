@@ -7,12 +7,12 @@
 app_ui()
 }
 \value{
-A [shiny::tagList()]-compatible UI definition.
+A \code{\link[shiny:tagList]{shiny::tagList()}}-compatible UI definition.
 }
 \description{
 Assembles the navigation bar, theme and the three workspaces. Exposed mainly
 so that a Shiny Server or 'shinyapps.io' deployment can build the interface
-directly; most users call [run_app()] instead.
+directly; most users call \code{\link[=run_app]{run_app()}} instead.
 }
 \examples{
 ui <- app_ui()

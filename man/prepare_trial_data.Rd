@@ -16,7 +16,7 @@ optionally env, rep, block}
 }
 \value{
 data frame with the internal analysis columns, carrying a
-  `field_summary` attribute
+\code{field_summary} attribute
 }
 \description{
 Validate and reshape an uploaded trial into the internal analysis layout.

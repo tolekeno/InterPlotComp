@@ -11,8 +11,8 @@ sample_pedigree(genotypes = NULL)
 Defaults to the genotypes of both worked example trials.}
 }
 \value{
-A data frame with columns `Genotype`, `Male_parent` and
-  `Female_parent`, founders having `NA` parents.
+A data frame with columns \code{Genotype}, \code{Male_parent} and
+\code{Female_parent}, founders having \code{NA} parents.
 }
 \description{
 A conventional breeding structure: ten unrelated founders crossed as five

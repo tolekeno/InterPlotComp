@@ -8,18 +8,18 @@
 \description{
 Fits direct-competition mixed models to unbordered single-row-plot breeding
 trials. For every genotype the model separates the effect expressed in its
-own plot (the *direct* effect) from the effect it imposes on neighbouring
-plots (the *competitive* effect), and combines them into the value the
+own plot (the \emph{direct} effect) from the effect it imposes on neighbouring
+plots (the \emph{competitive} effect), and combines them into the value the
 genotype would express in a pure stand.
 }
 \section{Getting started}{
 
-[run_app()] launches the interface. To script an analysis instead, the
-pipeline is [prepare_trial_data()], then [complete_field_grid()] for a
-spatial model, then [add_neighbours()], then [fit_single_model()] or
-[fit_met_model()]. [build_relationship()] supplies a pedigree or genomic
-relationship matrix. [sample_single_trial()], [sample_met_trial()] and
-[sample_pedigree()] generate worked examples from known parameters.
+\code{\link[=run_app]{run_app()}} launches the interface. To script an analysis instead, the
+pipeline is \code{\link[=prepare_trial_data]{prepare_trial_data()}}, then \code{\link[=complete_field_grid]{complete_field_grid()}} for a
+spatial model, then \code{\link[=add_neighbours]{add_neighbours()}}, then \code{\link[=fit_single_model]{fit_single_model()}} or
+\code{\link[=fit_met_model]{fit_met_model()}}. \code{\link[=build_relationship]{build_relationship()}} supplies a pedigree or genomic
+relationship matrix. \code{\link[=sample_single_trial]{sample_single_trial()}}, \code{\link[=sample_met_trial]{sample_met_trial()}} and
+\code{\link[=sample_pedigree]{sample_pedigree()}} generate worked examples from known parameters.
 }
 
 \section{ASReml-R licence}{

@@ -80,7 +80,7 @@ describe_residual <- function(row_process, col_process) {
 #' licence check, and a licence failure would then be reported here as "not
 #' installed", sending the user to fix the wrong problem. Installation and
 #' licensing are separate questions and are answered separately: this function
-#' answers the first, [load_asreml()] answers the second.
+#' answers the first, `load_asreml()` answers the second.
 #'
 #' Not cached: the check is a cheap directory lookup, and caching it would
 #' keep reporting "not installed" after the user installs ASReml and relaunches

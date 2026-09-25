@@ -7,20 +7,20 @@
 plot_rank_change(genetic, top_n = 25, base_size = 12, caption = NULL)
 }
 \arguments{
-\item{genetic}{The genotype table from `fit_single_model()$genetic`, or any
+\item{genetic}{The genotype table from \code{fit_single_model()$genetic}, or any
 data frame with the same columns.}
 
 \item{top_n}{Number of genotypes to show, taken from the top of the
 pure-stand ranking.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
 plot width.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 A slope chart between the direct-effect ranking and the pure-stand ranking.

@@ -15,19 +15,19 @@ save_figure(
 )
 }
 \arguments{
-\item{plot_fun}{A function of one argument, `base_size`, returning a
-[ggplot2::ggplot()]. Taking a function rather than a finished plot is what
+\item{plot_fun}{A function of one argument, \code{base_size}, returning a
+\code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}. Taking a function rather than a finished plot is what
 lets the text size follow the export width, so a figure saved at 9 cm and
 the same figure at 18 cm both come out legible.}
 
-\item{file}{Destination path. The format is taken from `format`, not from
+\item{file}{Destination path. The format is taken from \code{format}, not from
 the file extension.}
 
-\item{format}{One of `"png"`, `"tiff"`, `"pdf"`, `"svg"` or `"eps"`.}
+\item{format}{One of \code{"png"}, \code{"tiff"}, \code{"pdf"}, \code{"svg"} or \code{"eps"}.}
 
-\item{width, height}{Size in `units`.}
+\item{width, height}{Size in \code{units}.}
 
-\item{units}{`"cm"` or `"in"`.}
+\item{units}{\code{"cm"} or \code{"in"}.}
 
 \item{dpi}{Resolution for the raster formats; ignored for vector ones.}
 }
@@ -54,5 +54,5 @@ file.exists(f)
 unlink(f)
 }
 \seealso{
-`figure_base_size()` for how the text size is chosen.
+\code{figure_base_size()} for how the text size is chosen.
 }

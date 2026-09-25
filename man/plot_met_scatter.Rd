@@ -8,18 +8,18 @@ plot_met_scatter(values, k = 2, base_size = 12, caption = NULL)
 }
 \arguments{
 \item{values}{The genotype-by-environment table from
-`fit_met_model()$values`.}
+\code{fit_met_model()$values}.}
 
-\item{k}{Number of neighbours per plot, from `fit_met_model()$k`.}
+\item{k}{Number of neighbours per plot, from \code{fit_met_model()$k}.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
 plot width.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 Direct against competitive effects, one panel per environment.

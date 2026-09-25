@@ -15,13 +15,13 @@ plot_correlation_heatmap(
 }
 \arguments{
 \item{m}{A square correlation matrix with dimnames, such as
-`fit_met_model()$matrices$direct_cor`.}
+\code{fit_met_model()$matrices$direct_cor}.}
 
 \item{title}{Figure title, naming the effect the matrix describes.}
 
 \item{subtitle}{Optional subtitle.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
@@ -30,7 +30,7 @@ plot width.}
 \item{show_values}{Print the correlation in each cell.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 Genetic-correlation heatmap between environments.

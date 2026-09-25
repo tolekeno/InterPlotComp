@@ -7,25 +7,24 @@
 fit_met_model(d, neighbour_names, opts, progress = NULL)
 }
 \arguments{
-\item{d}{Prepared MET data from [prepare_trial_data()] with `multi_env =
-TRUE`, grid-completed by [complete_field_grid()] for a spatial model, and
-carrying the neighbour factors added by [add_neighbours()].}
+\item{d}{Prepared MET data from \code{\link[=prepare_trial_data]{prepare_trial_data()}} with \code{multi_env = TRUE}, grid-completed by \code{\link[=complete_field_grid]{complete_field_grid()}} for a spatial model, and
+carrying the neighbour factors added by \code{\link[=add_neighbours]{add_neighbours()}}.}
 
 \item{neighbour_names}{Names of the neighbour factors, from
-[add_neighbours()].}
+\code{\link[=add_neighbours]{add_neighbours()}}.}
 
-\item{opts}{Named list of fitting options: `structure` (one of
-`MET_STRUCTURES`), `rank`, `spatial`, `nugget`, `auto_simplify`,
-`exact_se`, `compare_baseline`, `maxit`, `workspace`, `cinv_limit` and an
-optional `relationship` from [build_relationship()].}
+\item{opts}{Named list of fitting options: \code{structure} (one of
+\code{MET_STRUCTURES}), \code{rank}, \code{spatial}, \code{nugget}, \code{auto_simplify},
+\code{exact_se}, \code{compare_baseline}, \code{maxit}, \code{workspace}, \code{cinv_limit} and an
+optional \code{relationship} from \code{\link[=build_relationship]{build_relationship()}}.}
 
-\item{progress}{Optional `function(i, n, reason)` called as the
+\item{progress}{Optional \verb{function(i, n, reason)} called as the
 simplification ladder advances.}
 }
 \value{
 A list holding the fitted model, the genetic values by environment,
-  the direct, competitive and pure-stand covariance and correlation
-  matrices, variance summaries, the fitting log and residuals.
+the direct, competitive and pure-stand covariance and correlation
+matrices, variance summaries, the fitting log and residuals.
 }
 \description{
 Fits environment-specific direct and competitive genotype effects sharing one

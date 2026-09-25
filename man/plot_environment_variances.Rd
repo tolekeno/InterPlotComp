@@ -8,17 +8,17 @@ plot_environment_variances(v, base_size = 12, caption = NULL)
 }
 \arguments{
 \item{v}{The per-environment variance table from
-`fit_met_model()$variance`, holding `Environment`, `Direct_variance`,
-`Competition_variance` and `Pure_stand_variance`.}
+\code{fit_met_model()$variance}, holding \code{Environment}, \code{Direct_variance},
+\code{Competition_variance} and \code{Pure_stand_variance}.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
 plot width.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 Direct, competitive and pure-stand genetic variance in each environment.

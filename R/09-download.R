@@ -35,7 +35,7 @@ FIGURE_PRESETS <- c(
 #' Two things set the numbers.
 #'
 #' The reference is 14 pt at the 18 cm double-column width. With the secondary
-#' ratios in [theme_trial()] that puts axis tick labels near 12 pt and the
+#' ratios in `theme_trial()` that puts axis tick labels near 12 pt and the
 #' caption near 11 pt - readable when the figure is placed at full size, and
 #' still readable after the shrink a figure usually takes on its way into a
 #' manuscript or a slide.

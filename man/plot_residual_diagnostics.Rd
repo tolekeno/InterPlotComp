@@ -7,25 +7,25 @@
 plot_residual_diagnostics(res, base_size = 12, caption = NULL)
 }
 \arguments{
-\item{res}{The residual table from `fit_single_model()$residuals` or
-`fit_met_model()$residuals`, holding at least `Fitted`, `Residual` and
-`Std_residual`.}
+\item{res}{The residual table from \code{fit_single_model()$residuals} or
+\code{fit_met_model()$residuals}, holding at least \code{Fitted}, \code{Residual} and
+\code{Std_residual}.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
 plot width.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 Residual diagnostics: fitted values, normal quantiles and distribution.
 }
 \details{
 Four panels are drawn when \pkg{patchwork} is installed; without
-  it the residual-versus-fitted panel is returned on its own.
+it the residual-versus-fitted panel is returned on its own.
 }
 \examples{
 set.seed(1)

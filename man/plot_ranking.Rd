@@ -15,19 +15,19 @@ plot_ranking(
 )
 }
 \arguments{
-\item{genetic}{The genotype table from `fit_single_model()$genetic`, or any
+\item{genetic}{The genotype table from \code{fit_single_model()$genetic}, or any
 data frame with the same columns.}
 
-\item{effect}{Which quantity to rank on. `"Predicted_pure_stand_yield"`
+\item{effect}{Which quantity to rank on. \code{"Predicted_pure_stand_yield"}
 is the default because it is what selection acts on; it falls back to
-`"Pure_stand_effect"` when the fitted mean is unavailable.}
+\code{"Pure_stand_effect"} when the fitted mean is unavailable.}
 
-\item{se_col}{Name of the standard-error column. Chosen from `effect` when
-`NULL`; error bars are omitted if no usable column is present.}
+\item{se_col}{Name of the standard-error column. Chosen from \code{effect} when
+\code{NULL}; error bars are omitted if no usable column is present.}
 
 \item{top_n}{Number of genotypes to show.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
@@ -36,7 +36,7 @@ plot width.}
 \item{conf}{Confidence level for the error bars.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 Error bars use the prediction error variance of the plotted combination, so

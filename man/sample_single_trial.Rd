@@ -7,12 +7,12 @@
 sample_single_trial()
 }
 \value{
-A data frame with columns `Row`, `Column`, `Rep`, `Block`,
-  `Genotype` and `Yield_t_ha`.
+A data frame with columns \code{Row}, \code{Column}, \code{Rep}, \code{Block},
+\code{Genotype} and \code{Yield_t_ha}.
 }
 \description{
 Simulates one 15 x 12 single-row-plot trial of 60 genotypes from the known
-parameters in `SIM_TRUTH`, so that a fitted model can be checked against the
+parameters in \code{SIM_TRUTH}, so that a fitted model can be checked against the
 values that generated the data. Includes the imperfections that break naive
 code: an incomplete block design, AR1 spatial trend, three failed plots and
 one position physically absent from the field.

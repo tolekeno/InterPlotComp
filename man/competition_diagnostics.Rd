@@ -8,17 +8,17 @@ competition_diagnostics(d, neighbour_names)
 }
 \arguments{
 \item{d}{The trial data with neighbour factors attached, i.e.
-`add_neighbours(...)$data`.}
+\code{add_neighbours(...)$data}.}
 
 \item{neighbour_names}{The neighbour column names, i.e.
-`add_neighbours(...)$names`.}
+\code{add_neighbours(...)$names}.}
 }
 \value{
 A list with the number of observed plots, the percentage carrying a
-  complete neighbour set, the mean number of neighbours, the number of
-  border plots, the mean number of distinct neighbour genotypes per
-  genotype, the percentage of self-neighbour pairings, the number of
-  genotypes and the neighbour count `k`.
+complete neighbour set, the mean number of neighbours, the number of
+border plots, the mean number of distinct neighbour genotypes per
+genotype, the percentage of self-neighbour pairings, the number of
+genotypes and the neighbour count \code{k}.
 }
 \description{
 Two things commonly undermine a competition model and are invisible in a
@@ -36,6 +36,6 @@ nb <- add_neighbours(complete_field_grid(d), "rows")
 competition_diagnostics(nb$data, nb$names)
 }
 \seealso{
-[competition_warnings()], which turns this into plain-English
-  warnings.
+\code{\link[=competition_warnings]{competition_warnings()}}, which turns this into plain-English
+warnings.
 }

@@ -17,10 +17,10 @@ plot_field_map(
 )
 }
 \arguments{
-\item{d}{A data frame with `Row`, `Column` and the value column. The
+\item{d}{A data frame with \code{Row}, \code{Column} and the value column. The
 coordinates are positions on the field, so they are mapped on continuous
-axes; the prepared trial data holds them as factors in `Row`/`Column` and
-as integers in `Row_i`/`Col_i`, and either form is accepted here.}
+axes; the prepared trial data holds them as factors in \code{Row}/\code{Column} and
+as integers in \code{Row_i}/\code{Col_i}, and either form is accepted here.}
 
 \item{value}{Name of the column to map.}
 
@@ -35,10 +35,10 @@ quantities) rather than the sequential one (for yields).}
 
 \item{caption}{Optional caption placed under the figure.}
 
-\item{fill_label}{Legend title; defaults to `value`.}
+\item{fill_label}{Legend title; defaults to \code{value}.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 The single most useful diagnostic for a spatially analysed trial: it shows

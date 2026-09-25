@@ -7,8 +7,8 @@
 sample_met_trial()
 }
 \value{
-A data frame with columns `Environment`, `Row`, `Column`, `Rep`,
-  `Block`, `Genotype` and `Yield_t_ha`.
+A data frame with columns \code{Environment}, \code{Row}, \code{Column}, \code{Rep},
+\code{Block}, \code{Genotype} and \code{Yield_t_ha}.
 }
 \description{
 Four environments of different sizes, sharing a core genotype set with

@@ -8,10 +8,10 @@ app_server(input, output, session)
 }
 \arguments{
 \item{input, output, session}{Standard Shiny server arguments, supplied by
-[shiny::shinyApp()].}
+\code{\link[shiny:shinyApp]{shiny::shinyApp()}}.}
 }
 \value{
-Called for its side effects; returns `NULL` invisibly.
+Called for its side effects; returns \code{NULL} invisibly.
 }
 \description{
 Server logic for the inter-plot competition application

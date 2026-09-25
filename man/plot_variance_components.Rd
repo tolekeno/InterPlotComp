@@ -8,18 +8,18 @@ plot_variance_components(varcomp, base_size = 12, caption = NULL)
 }
 \arguments{
 \item{varcomp}{The variance-parameter table from
-`fit_single_model()$varcomp` or `fit_met_model()$varcomp`. Bars are
-labelled with the `Interpretation` column where present, so that ASReml
+\code{fit_single_model()$varcomp} or \code{fit_met_model()$varcomp}. Bars are
+labelled with the \code{Interpretation} column where present, so that ASReml
 parameter strings never reach the figure.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
 plot width.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 Variance components as a share of the total.

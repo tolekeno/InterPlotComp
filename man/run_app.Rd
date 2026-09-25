@@ -16,7 +16,7 @@ run_app(
 \arguments{
 \item{launch.browser}{Open the application in the default browser.}
 
-\item{port}{Port to listen on. `NULL` lets Shiny choose a free one.}
+\item{port}{Port to listen on. \code{NULL} lets Shiny choose a free one.}
 
 \item{host}{Interface to bind to. The default binds to the loopback address
 only, so the application is not exposed to the network.}
@@ -25,11 +25,11 @@ only, so the application is not exposed to the network.}
 
 \item{quiet}{Suppress the start-up report of missing optional packages.}
 
-\item{...}{Further arguments passed to [shiny::runApp()].}
+\item{...}{Further arguments passed to \code{\link[shiny:runApp]{shiny::runApp()}}.}
 }
 \value{
 Called for its side effect of running the application. Does not
-  return until the application is stopped.
+return until the application is stopped.
 }
 \description{
 Starts the 'Shiny' interface for fitting direct-competition mixed models to

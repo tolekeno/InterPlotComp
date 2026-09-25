@@ -8,20 +8,20 @@ plot_stability(values, top_n = 12, base_size = 12, caption = NULL)
 }
 \arguments{
 \item{values}{The genotype-by-environment table from
-`fit_met_model()$values`, holding `Genotype`, `Environment`,
-`Pure_stand_effect` and `Status`.}
+\code{fit_met_model()$values}, holding \code{Genotype}, \code{Environment},
+\code{Pure_stand_effect} and \code{Status}.}
 
 \item{top_n}{Number of genotypes to trace, taken from the top of the
 across-environment mean.}
 
-\item{base_size}{Base font size in points. [save_figure()] chooses this from
+\item{base_size}{Base font size in points. \code{\link[=save_figure]{save_figure()}} chooses this from
 the export width; pass it explicitly only when composing a figure by hand.}
 
 \item{caption}{Optional caption placed under the figure, wrapped to the
 plot width.}
 }
 \value{
-A [ggplot2::ggplot()] object.
+A \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object.
 }
 \description{
 A parallel-coordinates view of the selection candidates. Lines that stay
