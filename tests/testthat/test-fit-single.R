@@ -222,6 +222,21 @@ test_that("a relationship matrix flows through the diag structure", {
   expect_equal(res$coverage$n_in_trial, 60L)
 })
 
+test_that("a relationship-matrix model keeps iterating to convergence", {
+  skip_without_asreml()
+  # Regression guard: update() could not see the local .kinship, so every
+  # continuation failed silently and a short-maxit fit never converged.
+  nb <- prepared_single()
+  rel <- build_relationship(
+    "pedigree", sample_pedigree(),
+    list(id = "Genotype", sire = "Male_parent", dam = "Female_parent"))
+  res <- suppressWarnings(fit_single_model(
+    nb$data, nb$names,
+    fit_options(structure = "diag", nugget = FALSE, exact_se = FALSE,
+                maxit = 5L, relationship = rel)))
+  expect_true(res$converged)
+})
+
 test_that("a relationship matrix flows through the us structure", {
   skip_without_asreml()
   nb <- prepared_single()

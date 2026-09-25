@@ -174,7 +174,9 @@ figure_devices <- function(format) {
     ),
     svg = c(
       if (has_pkg("svglite")) list(`svglite::svglite` = svglite::svglite),
-      if (capabilities("cairo")) list(`grDevices::svg` = grDevices::svg)
+      # Always tried last, even without cairo, so a failure names a device
+      # and carries its own error rather than an empty list.
+      list(`grDevices::svg` = grDevices::svg)
     ),
     eps = c(
       if (capabilities("cairo")) list(`grDevices::cairo_ps` = grDevices::cairo_ps),
@@ -192,16 +194,36 @@ figure_devices <- function(format) {
 save_figure_pdf_report <- function(plot_funs, file, width = 18, height = 14,
                                    units = "cm") {
   to_inches <- function(x) if (units == "cm") x / 2.54 else x
-  device <- if (capabilities("cairo")) grDevices::cairo_pdf else grDevices::pdf
-  device(file, width = to_inches(width), height = to_inches(height),
-         onefile = TRUE)
-  on.exit(grDevices::dev.off(), add = TRUE)
   base_size <- figure_base_size(if (units == "in") width * 2.54 else width)
-  for (f in plot_funs) {
-    p <- try(f(base_size), silent = TRUE)
-    if (!inherits(p, "try-error")) print(p)
+  plots <- lapply(plot_funs, function(f) try(f(base_size), silent = TRUE))
+  plots <- Filter(function(p) !inherits(p, "try-error"), plots)
+
+  # Same fallback-and-verify logic as save_figure(): cairo_pdf() can fail
+  # silently on macOS, so success is judged by the file actually written.
+  candidates <- figure_devices("pdf")
+  failures <- character(0)
+  for (nm in names(candidates)) {
+    if (file.exists(file)) unlink(file)
+    err <- tryCatch({
+      candidates[[nm]](file, width = to_inches(width),
+                       height = to_inches(height), onefile = TRUE)
+      tryCatch(for (p in plots) print(p),
+               finally = grDevices::dev.off())
+      NULL
+    }, error = function(e) conditionMessage(e))
+
+    if (is.null(err) && file.exists(file) && file.size(file) > 0) {
+      return(invisible(file))
+    }
+    failures <- c(failures, sprintf(
+      "%s: %s", nm, err %||% "produced no output"))
   }
-  invisible(file)
+
+  if (file.exists(file)) unlink(file)
+  stop("Could not write the PDF report. Devices tried:
+  ",
+       paste(failures, collapse = "
+  "), call. = FALSE)
 }
 
 # ---------------------------------------------------------------------------

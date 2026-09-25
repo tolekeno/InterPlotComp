@@ -81,14 +81,14 @@ describe_residual <- function(row_process, col_process) {
 #' installed", sending the user to fix the wrong problem. Installation and
 #' licensing are separate questions and are answered separately: this function
 #' answers the first, [load_asreml()] answers the second.
+#'
+#' Not cached: the check is a cheap directory lookup, and caching it would
+#' keep reporting "not installed" after the user installs ASReml and relaunches
+#' the app in the same R session.
 #' @noRd
-asreml_installed <- local({
-  cache <- NULL
-  function() {
-    if (is.null(cache)) cache <<- nzchar(system.file(package = "asreml"))
-    cache
-  }
-})
+asreml_installed <- function() {
+  nzchar(system.file(package = "asreml"))
+}
 
 #' Installed ASReml-R version, or NA.
 #' @noRd
@@ -241,9 +241,10 @@ interpret_component <- function(component, env_levels = NULL) {
                     x))
     }
     # The independent structure is fitted as plain terms, so the two genetic
-    # variances arrive under their own names.
-    if (identical(x, "Geno")) return("Direct genetic variance")
-    if (identical(x, "N1"))   return("Competitive genetic variance")
+    # variances arrive under their own names, wrapped in vm() when a
+    # relationship matrix is used.
+    if (grepl(genetic_term_pattern("Geno"), x)) return("Direct genetic variance")
+    if (grepl(genetic_term_pattern("N1"), x))   return("Competitive genetic variance")
 
     # -- multi-environment factor-analytic block ---------------------------
     m <- regmatches(x, regexec("!EffectEnv_([DC])([0-9]+)!(fa[0-9]+|var)$", x,
@@ -1020,17 +1021,29 @@ significance_stars <- function(p) {
 #' limit exists only so that a genuinely non-convergent model cannot spin
 #' forever; reaching it is reported rather than hidden.
 #'
+#' `update()` re-evaluates the stored call, and ASReml resolves the `.kinship`
+#' in `vm(Geno, .kinship)` from the frame that evaluates it. Called from here,
+#' that frame cannot see the fitting function's local `.kinship`, so every
+#' refit of a relationship-matrix model failed and the model was reported as
+#' not converged. The refit is therefore evaluated in a child of `envir`.
+#'
 #' @param fit a fitted asreml object
 #' @param max_rounds most additional `update()` calls to attempt
 #' @param progress optional function(round) for the busy indicator
+#' @param envir environment holding any objects the model formula refers to,
+#'   such as `.kinship`; defaults to the caller's frame
 #' @return list(fit, rounds, converged)
 #' @noRd
-iterate_to_convergence <- function(fit, max_rounds = 15L, progress = NULL) {
+iterate_to_convergence <- function(fit, max_rounds = 15L, progress = NULL,
+                                   envir = parent.frame()) {
   rounds <- 0L
   while (!isTRUE(fit$converge) && rounds < max_rounds) {
     rounds <- rounds + 1L
     if (is.function(progress)) progress(rounds)
-    nxt <- tryCatch(suppressWarnings(stats::update(fit)), error = function(e) NULL)
+    run <- new.env(parent = envir)
+    run$fit <- fit
+    nxt <- tryCatch(suppressWarnings(eval(quote(stats::update(fit)), run)),
+                    error = function(e) NULL)
     if (is.null(nxt)) break
     fit <- nxt
   }

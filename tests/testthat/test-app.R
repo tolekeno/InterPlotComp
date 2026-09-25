@@ -165,8 +165,8 @@ test_that("figure_devices offers a fallback for every raster and vector format",
     expect_true(all(vapply(d, is.function, logical(1))), info = fmt)
     expect_false(anyDuplicated(names(d)) > 0)
   }
-  # svg has no guaranteed device: both candidates are conditional.
-  expect_type(figure_devices("svg"), "list")
+  # svg always ends with grDevices::svg, so a failure names what was tried.
+  expect_identical(utils::tail(names(figure_devices("svg")), 1L), "grDevices::svg")
   expect_error(figure_devices("bmp"), "Unsupported export format")
 })
 
@@ -186,4 +186,38 @@ test_that("save_figure reports every device it tried when none can write", {
   expect_error(save_figure(p, f, format = "png"), "Could not write a png figure")
   expect_error(save_figure(p, f, format = "png"), "fake::silent")
   expect_false(file.exists(f))
+})
+
+test_that("save_figure_pdf_report falls back when a pdf device writes nothing", {
+  local_mocked_bindings(
+    figure_devices = function(format) {
+      list(`fake::silent` = function(file, ...) grDevices::pdf(file = nullfile()),
+           `grDevices::pdf` = grDevices::pdf)
+    }
+  )
+  p <- function(bs) ggplot2::ggplot(data.frame(x = 1, y = 1), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+  f <- withr::local_tempfile(fileext = ".pdf")
+  save_figure_pdf_report(list(p, p), f)
+  expect_gt(file.size(f), 0)
+})
+
+test_that("save_figure_pdf_report reports every device when none can write", {
+  local_mocked_bindings(
+    figure_devices = function(format) {
+      list(`fake::silent` = function(file, ...) grDevices::pdf(file = nullfile()))
+    }
+  )
+  p <- function(bs) ggplot2::ggplot(data.frame(x = 1, y = 1), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+  f <- withr::local_tempfile(fileext = ".pdf")
+  expect_error(save_figure_pdf_report(list(p), f), "fake::silent")
+  expect_false(file.exists(f))
+})
+
+test_that("independent genetic variances are labelled with a relationship matrix", {
+  lab <- interpret_component(c("Geno", "N1", "vm(Geno, .kinship)",
+                               "vm(N1, .kinship)"))
+  expect_equal(lab, rep(c("Direct genetic variance",
+                          "Competitive genetic variance"), 2))
 })

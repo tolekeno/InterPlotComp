@@ -6,6 +6,28 @@ two genuine bugs were found in the process and are fixed below.
 
 ## Bug fixes
 
+* **Models with a relationship matrix now actually iterate to convergence.**
+  Each continuation `update()` was evaluated where the local `.kinship` object
+  was not visible, failed with "object '.kinship' not found", and the failure
+  was swallowed. Such fits, and their no-competition baseline, were therefore
+  reported as not converged whenever the first `maxit` iterations were not
+  enough.
+
+* **Variance labels are readable with a relationship matrix.** The `diag`
+  structure's `vm(Geno, .kinship)` and `vm(N1, .kinship)` parameters now show
+  as "Direct genetic variance" and "Competitive genetic variance" in the
+  variance table and figure, not as raw ASReml names.
+
+* **The multi-page PDF report falls back between devices** and checks that a
+  file was written, as single-figure export already did. On macOS builds where
+  `cairo_pdf()` fails silently the report is no longer empty.
+
+* **SVG export always tries `grDevices::svg()`** as a last resort, so a machine
+  without svglite gives a specific error instead of an empty device list.
+
+* **Installing ASReml-R no longer needs an R restart to be noticed.** The
+  installed check is no longer cached for the session.
+
 * **A `diag` model fitted with a relationship matrix no longer fails.** With a
   pedigree or genomic relationship matrix in use, ASReml names the genetic
   variance parameters `vm(Geno, .kinship)` rather than `Geno`. The independent
