@@ -13,8 +13,8 @@ sample_met_trial()
 
 ## Value
 
-A data frame with columns \`Environment\`, \`Row\`, \`Column\`, \`Rep\`,
-\`Block\`, \`Genotype\` and \`Yield_t_ha\`.
+A data frame with columns `Environment`, `Row`, `Column`, `Rep`,
+`Block`, `Genotype` and `Yield_t_ha`.
 
 ## Examples
 

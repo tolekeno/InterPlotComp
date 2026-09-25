@@ -15,7 +15,7 @@ plot_rank_change(genetic, top_n = 25, base_size = 12, caption = NULL)
 
 - genetic:
 
-  The genotype table from \`fit_single_model()\$genetic\`, or any data
+  The genotype table from `fit_single_model()$genetic`, or any data
   frame with the same columns.
 
 - top_n:
@@ -25,8 +25,10 @@ plot_rank_change(genetic, top_n = 25, base_size = 12, caption = NULL)
 
 - base_size:
 
-  Base font size in points. \[save_figure()\] chooses this from the
-  export width; pass it explicitly only when composing a figure by hand.
+  Base font size in points.
+  [`save_figure()`](https://tolekeno.github.io/InterPlotComp/reference/save_figure.md)
+  chooses this from the export width; pass it explicitly only when
+  composing a figure by hand.
 
 - caption:
 
@@ -34,7 +36,9 @@ plot_rank_change(genetic, top_n = 25, base_size = 12, caption = NULL)
 
 ## Value
 
-A \[ggplot2::ggplot()\] object.
+A
+[`ggplot2::ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+object.
 
 ## Examples
 

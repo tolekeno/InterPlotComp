@@ -12,15 +12,17 @@ plot_variance_components(varcomp, base_size = 12, caption = NULL)
 
 - varcomp:
 
-  The variance-parameter table from \`fit_single_model()\$varcomp\` or
-  \`fit_met_model()\$varcomp\`. Bars are labelled with the
-  \`Interpretation\` column where present, so that ASReml parameter
-  strings never reach the figure.
+  The variance-parameter table from `fit_single_model()$varcomp` or
+  `fit_met_model()$varcomp`. Bars are labelled with the `Interpretation`
+  column where present, so that ASReml parameter strings never reach the
+  figure.
 
 - base_size:
 
-  Base font size in points. \[save_figure()\] chooses this from the
-  export width; pass it explicitly only when composing a figure by hand.
+  Base font size in points.
+  [`save_figure()`](https://tolekeno.github.io/InterPlotComp/reference/save_figure.md)
+  chooses this from the export width; pass it explicitly only when
+  composing a figure by hand.
 
 - caption:
 
@@ -28,7 +30,9 @@ plot_variance_components(varcomp, base_size = 12, caption = NULL)
 
 ## Value
 
-A \[ggplot2::ggplot()\] object.
+A
+[`ggplot2::ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+object.
 
 ## Examples
 

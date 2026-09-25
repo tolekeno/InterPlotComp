@@ -34,6 +34,13 @@ model has changed.
 - **Installing ASReml-R no longer needs an R restart to be noticed.**
   The installed check is no longer cached for the session.
 
+### Documentation
+
+- **Help-page links work.** Roxygen markdown was not enabled, so
+  references such as `[run_app()]`, inline code and emphasis reached the
+  help pages and the website as literal text. They are now proper links
+  and formatting.
+
 ## InterPlotComp 3.8.0
 
 This release turns the working application into a package that can be

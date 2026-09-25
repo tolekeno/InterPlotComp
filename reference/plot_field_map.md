@@ -24,11 +24,11 @@ plot_field_map(
 
 - d:
 
-  A data frame with \`Row\`, \`Column\` and the value column. The
+  A data frame with `Row`, `Column` and the value column. The
   coordinates are positions on the field, so they are mapped on
   continuous axes; the prepared trial data holds them as factors in
-  \`Row\`/\`Column\` and as integers in \`Row_i\`/\`Col_i\`, and either
-  form is accepted here.
+  `Row`/`Column` and as integers in `Row_i`/`Col_i`, and either form is
+  accepted here.
 
 - value:
 
@@ -57,11 +57,13 @@ plot_field_map(
 
 - fill_label:
 
-  Legend title; defaults to \`value\`.
+  Legend title; defaults to `value`.
 
 ## Value
 
-A \[ggplot2::ggplot()\] object.
+A
+[`ggplot2::ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+object.
 
 ## Examples
 

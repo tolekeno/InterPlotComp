@@ -20,7 +20,7 @@ plot_correlation_heatmap(
 - m:
 
   A square correlation matrix with dimnames, such as
-  \`fit_met_model()\$matrices\$direct_cor\`.
+  `fit_met_model()$matrices$direct_cor`.
 
 - title:
 
@@ -32,8 +32,10 @@ plot_correlation_heatmap(
 
 - base_size:
 
-  Base font size in points. \[save_figure()\] chooses this from the
-  export width; pass it explicitly only when composing a figure by hand.
+  Base font size in points.
+  [`save_figure()`](https://tolekeno.github.io/InterPlotComp/reference/save_figure.md)
+  chooses this from the export width; pass it explicitly only when
+  composing a figure by hand.
 
 - caption:
 
@@ -45,7 +47,9 @@ plot_correlation_heatmap(
 
 ## Value
 
-A \[ggplot2::ggplot()\] object.
+A
+[`ggplot2::ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+object.
 
 ## Examples
 

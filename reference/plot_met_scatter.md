@@ -12,16 +12,18 @@ plot_met_scatter(values, k = 2, base_size = 12, caption = NULL)
 
 - values:
 
-  The genotype-by-environment table from \`fit_met_model()\$values\`.
+  The genotype-by-environment table from `fit_met_model()$values`.
 
 - k:
 
-  Number of neighbours per plot, from \`fit_met_model()\$k\`.
+  Number of neighbours per plot, from `fit_met_model()$k`.
 
 - base_size:
 
-  Base font size in points. \[save_figure()\] chooses this from the
-  export width; pass it explicitly only when composing a figure by hand.
+  Base font size in points.
+  [`save_figure()`](https://tolekeno.github.io/InterPlotComp/reference/save_figure.md)
+  chooses this from the export width; pass it explicitly only when
+  composing a figure by hand.
 
 - caption:
 
@@ -29,7 +31,9 @@ plot_met_scatter(values, k = 2, base_size = 12, caption = NULL)
 
 ## Value
 
-A \[ggplot2::ggplot()\] object.
+A
+[`ggplot2::ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+object.
 
 ## Examples
 

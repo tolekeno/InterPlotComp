@@ -24,7 +24,7 @@ run_app(
 
 - port:
 
-  Port to listen on. \`NULL\` lets Shiny choose a free one.
+  Port to listen on. `NULL` lets Shiny choose a free one.
 
 - host:
 
@@ -41,7 +41,8 @@ run_app(
 
 - ...:
 
-  Further arguments passed to \[shiny::runApp()\].
+  Further arguments passed to
+  [`shiny::runApp()`](https://rdrr.io/pkg/shiny/man/runApp.html).
 
 ## Value
 

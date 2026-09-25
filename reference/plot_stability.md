@@ -15,9 +15,8 @@ plot_stability(values, top_n = 12, base_size = 12, caption = NULL)
 
 - values:
 
-  The genotype-by-environment table from \`fit_met_model()\$values\`,
-  holding \`Genotype\`, \`Environment\`, \`Pure_stand_effect\` and
-  \`Status\`.
+  The genotype-by-environment table from `fit_met_model()$values`,
+  holding `Genotype`, `Environment`, `Pure_stand_effect` and `Status`.
 
 - top_n:
 
@@ -26,8 +25,10 @@ plot_stability(values, top_n = 12, base_size = 12, caption = NULL)
 
 - base_size:
 
-  Base font size in points. \[save_figure()\] chooses this from the
-  export width; pass it explicitly only when composing a figure by hand.
+  Base font size in points.
+  [`save_figure()`](https://tolekeno.github.io/InterPlotComp/reference/save_figure.md)
+  chooses this from the export width; pass it explicitly only when
+  composing a figure by hand.
 
 - caption:
 
@@ -35,7 +36,9 @@ plot_stability(values, top_n = 12, base_size = 12, caption = NULL)
 
 ## Value
 
-A \[ggplot2::ggplot()\] object.
+A
+[`ggplot2::ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+object.
 
 ## Examples
 

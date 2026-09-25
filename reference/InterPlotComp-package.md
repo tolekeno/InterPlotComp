@@ -2,19 +2,30 @@
 
 Fits direct-competition mixed models to unbordered single-row-plot
 breeding trials. For every genotype the model separates the effect
-expressed in its own plot (the \*direct\* effect) from the effect it
-imposes on neighbouring plots (the \*competitive\* effect), and combines
+expressed in its own plot (the *direct* effect) from the effect it
+imposes on neighbouring plots (the *competitive* effect), and combines
 them into the value the genotype would express in a pure stand.
 
 ## Getting started
 
-\[run_app()\] launches the interface. To script an analysis instead, the
-pipeline is \[prepare_trial_data()\], then \[complete_field_grid()\] for
-a spatial model, then \[add_neighbours()\], then \[fit_single_model()\]
-or \[fit_met_model()\]. \[build_relationship()\] supplies a pedigree or
-genomic relationship matrix. \[sample_single_trial()\],
-\[sample_met_trial()\] and \[sample_pedigree()\] generate worked
-examples from known parameters.
+[`run_app()`](https://tolekeno.github.io/InterPlotComp/reference/run_app.md)
+launches the interface. To script an analysis instead, the pipeline is
+[`prepare_trial_data()`](https://tolekeno.github.io/InterPlotComp/reference/prepare_trial_data.md),
+then
+[`complete_field_grid()`](https://tolekeno.github.io/InterPlotComp/reference/complete_field_grid.md)
+for a spatial model, then
+[`add_neighbours()`](https://tolekeno.github.io/InterPlotComp/reference/add_neighbours.md),
+then
+[`fit_single_model()`](https://tolekeno.github.io/InterPlotComp/reference/fit_single_model.md)
+or
+[`fit_met_model()`](https://tolekeno.github.io/InterPlotComp/reference/fit_met_model.md).
+[`build_relationship()`](https://tolekeno.github.io/InterPlotComp/reference/build_relationship.md)
+supplies a pedigree or genomic relationship matrix.
+[`sample_single_trial()`](https://tolekeno.github.io/InterPlotComp/reference/sample_single_trial.md),
+[`sample_met_trial()`](https://tolekeno.github.io/InterPlotComp/reference/sample_met_trial.md)
+and
+[`sample_pedigree()`](https://tolekeno.github.io/InterPlotComp/reference/sample_pedigree.md)
+generate worked examples from known parameters.
 
 ## ASReml-R licence
 

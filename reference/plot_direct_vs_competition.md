@@ -23,12 +23,12 @@ plot_direct_vs_competition(
 
 - genetic:
 
-  The genotype table from \`fit_single_model()\$genetic\`, or any data
+  The genotype table from `fit_single_model()$genetic`, or any data
   frame with the same columns.
 
 - k:
 
-  Number of neighbours per plot, from \`fit_single_model()\$k\`. It sets
+  Number of neighbours per plot, from `fit_single_model()$k`. It sets
   the weight on the competitive effect in the pure-stand value.
 
 - label_n:
@@ -37,8 +37,10 @@ plot_direct_vs_competition(
 
 - base_size:
 
-  Base font size in points. \[save_figure()\] chooses this from the
-  export width; pass it explicitly only when composing a figure by hand.
+  Base font size in points.
+  [`save_figure()`](https://tolekeno.github.io/InterPlotComp/reference/save_figure.md)
+  chooses this from the export width; pass it explicitly only when
+  composing a figure by hand.
 
 - caption:
 
@@ -46,11 +48,14 @@ plot_direct_vs_competition(
 
 ## Value
 
-A \[ggplot2::ggplot()\] object.
+A
+[`ggplot2::ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+object.
 
 ## See also
 
-\[plot_rank_change()\] for the consequence of this figure for selection.
+[`plot_rank_change()`](https://tolekeno.github.io/InterPlotComp/reference/plot_rank_change.md)
+for the consequence of this figure for selection.
 
 ## Examples
 

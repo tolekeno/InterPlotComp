@@ -1,10 +1,11 @@
 # Warnings about a layout that cannot support a competition model
 
-Turns \[competition_diagnostics()\] into the specific sentences a user
-needs to read before trusting a fit. Three things undermine a
-competition model and are invisible in a plain data preview: too many
-border plots, neighbour pairings that repeat across replicates, and too
-small a genotype panel.
+Turns
+[`competition_diagnostics()`](https://tolekeno.github.io/InterPlotComp/reference/competition_diagnostics.md)
+into the specific sentences a user needs to read before trusting a fit.
+Three things undermine a competition model and are invisible in a plain
+data preview: too many border plots, neighbour pairings that repeat
+across replicates, and too small a genotype panel.
 
 ## Usage
 
@@ -16,7 +17,8 @@ competition_warnings(x)
 
 - x:
 
-  The list returned by \[competition_diagnostics()\].
+  The list returned by
+  [`competition_diagnostics()`](https://tolekeno.github.io/InterPlotComp/reference/competition_diagnostics.md).
 
 ## Value
 

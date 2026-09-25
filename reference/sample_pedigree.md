@@ -21,8 +21,8 @@ sample_pedigree(genotypes = NULL)
 
 ## Value
 
-A data frame with columns \`Genotype\`, \`Male_parent\` and
-\`Female_parent\`, founders having \`NA\` parents.
+A data frame with columns `Genotype`, `Male_parent` and `Female_parent`,
+founders having `NA` parents.
 
 ## Examples
 

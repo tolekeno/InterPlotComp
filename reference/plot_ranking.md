@@ -23,19 +23,19 @@ plot_ranking(
 
 - genetic:
 
-  The genotype table from \`fit_single_model()\$genetic\`, or any data
+  The genotype table from `fit_single_model()$genetic`, or any data
   frame with the same columns.
 
 - effect:
 
-  Which quantity to rank on. \`"Predicted_pure_stand_yield"\` is the
+  Which quantity to rank on. `"Predicted_pure_stand_yield"` is the
   default because it is what selection acts on; it falls back to
-  \`"Pure_stand_effect"\` when the fitted mean is unavailable.
+  `"Pure_stand_effect"` when the fitted mean is unavailable.
 
 - se_col:
 
-  Name of the standard-error column. Chosen from \`effect\` when
-  \`NULL\`; error bars are omitted if no usable column is present.
+  Name of the standard-error column. Chosen from `effect` when `NULL`;
+  error bars are omitted if no usable column is present.
 
 - top_n:
 
@@ -43,8 +43,10 @@ plot_ranking(
 
 - base_size:
 
-  Base font size in points. \[save_figure()\] chooses this from the
-  export width; pass it explicitly only when composing a figure by hand.
+  Base font size in points.
+  [`save_figure()`](https://tolekeno.github.io/InterPlotComp/reference/save_figure.md)
+  chooses this from the export width; pass it explicitly only when
+  composing a figure by hand.
 
 - caption:
 
@@ -56,7 +58,9 @@ plot_ranking(
 
 ## Value
 
-A \[ggplot2::ggplot()\] object.
+A
+[`ggplot2::ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+object.
 
 ## Examples
 

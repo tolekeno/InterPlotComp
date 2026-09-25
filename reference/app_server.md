@@ -12,8 +12,9 @@ app_server(input, output, session)
 
 - input, output, session:
 
-  Standard Shiny server arguments, supplied by \[shiny::shinyApp()\].
+  Standard Shiny server arguments, supplied by
+  [`shiny::shinyApp()`](https://rdrr.io/pkg/shiny/man/shinyApp.html).
 
 ## Value
 
-Called for its side effects; returns \`NULL\` invisibly.
+Called for its side effects; returns `NULL` invisibly.

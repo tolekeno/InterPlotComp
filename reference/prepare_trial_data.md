@@ -27,4 +27,4 @@ prepare_trial_data(raw, map, multi_env = FALSE)
 ## Value
 
 data frame with the internal analysis columns, carrying a
-\`field_summary\` attribute
+`field_summary` attribute

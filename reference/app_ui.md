@@ -2,7 +2,9 @@
 
 Assembles the navigation bar, theme and the three workspaces. Exposed
 mainly so that a Shiny Server or 'shinyapps.io' deployment can build the
-interface directly; most users call \[run_app()\] instead.
+interface directly; most users call
+[`run_app()`](https://tolekeno.github.io/InterPlotComp/reference/run_app.md)
+instead.
 
 ## Usage
 
@@ -12,7 +14,9 @@ app_ui()
 
 ## Value
 
-A \[shiny::tagList()\]-compatible UI definition.
+A
+[`shiny::tagList()`](https://rstudio.github.io/htmltools/reference/tagList.html)-compatible
+UI definition.
 
 ## Examples
 
