@@ -1,8 +1,7 @@
-# InterPlotComp 3.8.0
+# InterPlotComp 3.8.1
 
-This release turns the working application into a package that can be checked,
-tested and installed like any other. Nothing about the model has changed, but
-two genuine bugs were found in the process and are fixed below.
+A patch release that fixes five bugs found by review. Nothing about the model
+has changed.
 
 ## Bug fixes
 
@@ -27,6 +26,14 @@ two genuine bugs were found in the process and are fixed below.
 
 * **Installing ASReml-R no longer needs an R restart to be noticed.** The
   installed check is no longer cached for the session.
+
+# InterPlotComp 3.8.0
+
+This release turns the working application into a package that can be checked,
+tested and installed like any other. Nothing about the model has changed, but
+two genuine bugs were found in the process and are fixed below.
+
+## Bug fixes
 
 * **A `diag` model fitted with a relationship matrix no longer fails.** With a
   pedigree or genomic relationship matrix in use, ASReml names the genetic

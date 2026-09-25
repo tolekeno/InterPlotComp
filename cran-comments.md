@@ -1,5 +1,10 @@
 # cran-comments.md
 
+## Submission
+
+This is a new submission of InterPlotComp 3.8.1. Version 3.8.0 was never
+submitted; 3.8.1 adds only bug fixes on top of it (see NEWS.md).
+
 ## Test environments
 
 * Windows 11, R 4.6.1 (local)

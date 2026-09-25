@@ -1,6 +1,6 @@
 Package: InterPlotComp
 Title: Inter-Plot Competition Analysis for Plant Breeding Trials
-Version: 3.8.0
+Version: 3.8.1
 Authors@R:
     person("Tolera", "Keno", email = "tolekeno@gmail.com",
            role = c("aut", "cre", "cph"))
