@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,16 +43,23 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="3.8.0" id="interplotcomp-380">InterPlotComp 3.8.0<a class="anchor" aria-label="anchor" href="#interplotcomp-380"></a></h2>
-<p>This release turns the working application into a package that can be checked, tested and installed like any other. Nothing about the model has changed, but two genuine bugs were found in the process and are fixed below.</p>
+<h2 class="pkg-version" data-toc-text="3.8.1" id="interplotcomp-381">InterPlotComp 3.8.1<a class="anchor" aria-label="anchor" href="#interplotcomp-381"></a></h2>
+<p>A patch release that fixes five bugs found by review. Nothing about the model has changed.</p>
 <div class="section level3">
-<h3 id="bug-fixes-3-8-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-3-8-0"></a></h3>
+<h3 id="bug-fixes-3-8-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-3-8-1"></a></h3>
 <ul><li><p><strong>Models with a relationship matrix now actually iterate to convergence.</strong> Each continuation <code><a href="https://rdrr.io/r/stats/update.html" class="external-link">update()</a></code> was evaluated where the local <code>.kinship</code> object was not visible, failed with “object ‘.kinship’ not found”, and the failure was swallowed. Such fits, and their no-competition baseline, were therefore reported as not converged whenever the first <code>maxit</code> iterations were not enough.</p></li>
 <li><p><strong>Variance labels are readable with a relationship matrix.</strong> The <code>diag</code> structure’s <code>vm(Geno, .kinship)</code> and <code>vm(N1, .kinship)</code> parameters now show as “Direct genetic variance” and “Competitive genetic variance” in the variance table and figure, not as raw ASReml names.</p></li>
 <li><p><strong>The multi-page PDF report falls back between devices</strong> and checks that a file was written, as single-figure export already did. On macOS builds where <code><a href="https://rdrr.io/r/grDevices/cairo.html" class="external-link">cairo_pdf()</a></code> fails silently the report is no longer empty.</p></li>
 <li><p><strong>SVG export always tries <code><a href="https://rdrr.io/r/grDevices/cairo.html" class="external-link">grDevices::svg()</a></code></strong> as a last resort, so a machine without svglite gives a specific error instead of an empty device list.</p></li>
 <li><p><strong>Installing ASReml-R no longer needs an R restart to be noticed.</strong> The installed check is no longer cached for the session.</p></li>
-<li><p><strong>A <code>diag</code> model fitted with a relationship matrix no longer fails.</strong> With a pedigree or genomic relationship matrix in use, ASReml names the genetic variance parameters <code>vm(Geno, .kinship)</code> rather than <code>Geno</code>. The independent structure looked for the bare name only, found nothing, and aborted the fit with “Could not reconstruct the independent genetic variances”. The <code>us</code> and <code>corgh</code> structures were unaffected, as was the whole multi-environment path, because they identify their parameters differently.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="3.8.0" id="interplotcomp-380">InterPlotComp 3.8.0<a class="anchor" aria-label="anchor" href="#interplotcomp-380"></a></h2>
+<p>This release turns the working application into a package that can be checked, tested and installed like any other. Nothing about the model has changed, but two genuine bugs were found in the process and are fixed below.</p>
+<div class="section level3">
+<h3 id="bug-fixes-3-8-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-3-8-0"></a></h3>
+<ul><li><p><strong>A <code>diag</code> model fitted with a relationship matrix no longer fails.</strong> With a pedigree or genomic relationship matrix in use, ASReml names the genetic variance parameters <code>vm(Geno, .kinship)</code> rather than <code>Geno</code>. The independent structure looked for the bare name only, found nothing, and aborted the fit with “Could not reconstruct the independent genetic variances”. The <code>us</code> and <code>corgh</code> structures were unaffected, as was the whole multi-environment path, because they identify their parameters differently.</p></li>
 <li><p><strong>The no-competition baseline is now iterated to convergence</strong> before it is used in the likelihood-ratio test, exactly as the full model already was. Comparing a converged fit against one that had merely run out of iterations used the wrong log-likelihood, and biased the reported p-value by however far the baseline still had to go. Both the single-trial and the multi-environment comparisons were affected.</p></li>
 <li><p><code><a href="../reference/plot_field_map.html">plot_field_map()</a></code> now accepts the field coordinates as factors as well as integers, and names a missing value column in its error message. Passing the prepared trial data directly used to fail at draw time with ggplot2’s generic “Discrete value supplied to a continuous scale”.</p></li>
 </ul></div>

@@ -26,13 +26,13 @@ can reduce rate of genetic gain.” *Theoretical and Applied Genetics*,
     }
 
 Keno T (2026). *InterPlotComp: Inter-Plot Competition Analysis for Plant
-Breeding Trials*. R package version 3.8.0,
+Breeding Trials*. R package version 3.8.1,
 <https://github.com/tolekeno/InterPlotComp>.
 
     @Manual{,
       title = {InterPlotComp: Inter-Plot Competition Analysis for Plant Breeding Trials},
       author = {Tolera Keno},
       year = {2026},
-      note = {R package version 3.8.0},
+      note = {R package version 3.8.1},
       url = {https://github.com/tolekeno/InterPlotComp},
     }
