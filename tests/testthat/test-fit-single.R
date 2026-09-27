@@ -302,3 +302,70 @@ test_that("print_model_summary writes a readable report", {
   expect_gt(length(out), 5L)
   expect_true(any(grepl("ompetiti", out)))
 })
+
+test_that("lrow and lcol enter a single trial as plain fixed covariates", {
+  skip_without_asreml()
+  nb <- prepared_single()
+  res <- fit_single_model(nb$data, nb$names,
+                          fit_options(structure = "diag", nugget = FALSE,
+                                      exact_se = FALSE,
+                                      field_trend = c("lrow", "lcol")))
+  expect_true(res$converged)
+  expect_equal(res$field_trend_terms, c("lrow", "lcol"))
+  expect_match(formula_text(res$fit$formulae$fixed), "~1+lrow+lcol", fixed = TRUE)
+  expect_true(all(c("Linear row trend (lrow)", "Linear column trend (lcol)") %in%
+                    res$wald$Term))
+  expect_match(res$description, "linear row and column trends")
+  # Centred on the middle of the field, so they average to zero over the grid.
+  expect_equal(mean(res$data$lrow), 0, tolerance = 1e-10)
+  expect_equal(mean(res$data$lcol), 0, tolerance = 1e-10)
+})
+
+test_that("a single trial without a trend request fits no trend terms", {
+  skip_without_asreml()
+  res <- cached_single_fit()
+  expect_length(res$field_trend_terms, 0L)
+  expect_null(res$outliers)
+  expect_false(any(c("lrow", "lcol") %in% names(res$data)))
+})
+
+test_that("single-trial outlier removal refits and the script reproduces it", {
+  skip_without_asreml()
+  raw <- sample_single_trial()
+  raw$Yield_t_ha[25] <- raw$Yield_t_ha[25] - 6
+  d <- prepare_trial_data(raw, single_map())
+  nb <- add_neighbours(complete_field_grid(d), "rows")
+  res <- fit_single_model(nb$data, nb$names,
+                          fit_options(structure = "diag", nugget = FALSE,
+                                      exact_se = FALSE, outliers = "remove",
+                                      field_trend = "lrow"))
+
+  o <- res$outliers
+  expect_gte(o$n_removed, 1L)
+  expect_true(any(o$removed$Field_row == as.character(raw$Row[25]) &
+                    o$removed$Field_column == as.character(raw$Column[25])))
+  expect_equal(o$summary$Environment, "Trial")
+
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(raw, csv, row.names = FALSE)
+  script <- asreml_script(res, data_file = csv, map = single_map(), axis = "rows")
+  run <- new.env()
+  utils::capture.output(suppressWarnings(eval(parse(text = script), envir = run)))
+  expect_equal(run$fit$loglik, res$fit$loglik, tolerance = 1e-4)
+})
+
+test_that("outlier screening sees .kinship when a relationship matrix is used", {
+  skip_without_asreml()
+  # The aom = TRUE continuation that supplies stdCond residuals re-evaluates
+  # the fit, and must resolve vm(Geno, .kinship) from the fitting frame. If it
+  # could not, the screen would silently fall back to pooled scaling.
+  nb <- prepared_single()
+  rel <- build_relationship(
+    "pedigree", sample_pedigree(),
+    list(id = "Genotype", sire = "Male_parent", dam = "Female_parent"))
+  res <- fit_single_model(nb$data, nb$names,
+                          fit_options(structure = "diag", nugget = FALSE,
+                                      exact_se = FALSE, relationship = rel,
+                                      outliers = "detect"))
+  expect_match(res$outliers$method, "stdCond")
+})

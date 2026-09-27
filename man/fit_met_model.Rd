@@ -13,10 +13,23 @@ carrying the neighbour factors added by \code{\link[=add_neighbours]{add_neighbo
 \item{neighbour_names}{Names of the neighbour factors, from
 \code{\link[=add_neighbours]{add_neighbours()}}.}
 
-\item{opts}{Named list of fitting options: \code{structure} (one of
-\code{MET_STRUCTURES}), \code{rank}, \code{spatial}, \code{nugget}, \code{auto_simplify},
-\code{exact_se}, \code{compare_baseline}, \code{maxit}, \code{workspace}, \code{cinv_limit} and an
-optional \code{relationship} from \code{\link[=build_relationship]{build_relationship()}}.}
+\item{opts}{Named list of fitting options: \code{structure} (\code{"facv"} or
+\code{"diag"}; the \code{"separable"} and \code{"fa"} structures were removed in 3.9.0),
+\code{rank}, \code{spatial}, \code{nugget}, \code{auto_simplify}, \code{exact_se},
+\code{compare_baseline}, \code{maxit}, \code{workspace}, \code{cinv_limit}, an optional
+\code{relationship} from \code{\link[=build_relationship]{build_relationship()}}, and:
+\itemize{
+\item \code{field_trend} - global field-trend adjustment (Gilmour, Cullis &
+Verbyla 1997). A named list with one entry per site to adjust, each
+\code{"lrow"}, \code{"lcol"} or \code{"both"}, for example
+\code{list(Env01 = "both", Env03 = "lrow")}; or an unnamed \code{c("lrow", "lcol")} to adjust every site the same way. Each selected site gets
+its own fixed linear slope, \verb{at(Env, <site>):lrow}.
+\item \code{outliers} - \code{"none"} (default), \code{"detect"} to flag observations whose
+standardised conditional residual exceeds \code{outlier_threshold}, or
+\code{"remove"} to flag them, set their response to missing and refit.
+\item \code{outlier_threshold} - the absolute standardised residual beyond which
+an observation is an outlier; default 4.
+}}
 
 \item{progress}{Optional \verb{function(i, n, reason)} called as the
 simplification ladder advances.}
@@ -24,7 +37,10 @@ simplification ladder advances.}
 \value{
 A list holding the fitted model, the genetic values by environment,
 the direct, competitive and pure-stand covariance and correlation
-matrices, variance summaries, the fitting log and residuals.
+matrices, variance summaries, the fitting log and residuals. When outlier
+screening is on, \code{outliers} holds the flagged and removed observations
+and a per-site summary; \code{field_trend} holds the trend specification; and
+\code{model_code} feeds \code{\link[=asreml_script]{asreml_script()}}.
 }
 \description{
 Fits environment-specific direct and competitive genotype effects sharing one

@@ -66,12 +66,12 @@ head(levels(met_nb$data$RepF))
 |---|---|---|
 | `"diag"` | No genetic correlation between environments | fewest |
 | `"facv"` | Joint factor-analytic covariance over direct *and* competitive effects | most |
-| `"separable"` | One 2×2 direct–competition covariance crossed with one environment covariance | middle |
-| `"fa"` | Separate FA covariances; direct–competition covariance fixed at zero | middle |
 
-`"facv"` is the model you want if it will fit: it is the only one that lets the
-direct–competition covariance differ between environments. `"separable"` is the
-usual fallback, costing `3 + E(r + 1)` parameters instead of `2E(r + 1)`.
+`"facv"` is the model you want: it lets the direct–competition covariance differ
+between environments and estimates it rather than assuming it. If it will not
+fit, lower the factor-analytic rank; `"diag"` is the nested null model. The
+`"separable"` and `"fa"` structures of earlier versions were withdrawn in 3.9.0,
+and asking for them is now an error that names the replacement.
 
 ```{r, eval = has_asreml}
 met_fit <- fit_met_model(
@@ -211,6 +211,34 @@ covariate value and predicted pure-stand yields remain on the scale a breeder
 expects. A covariate that is missing for more than half the plots is refused:
 adjusting for something mostly absent biases the competitive effects more than
 it corrects them.
+
+## Global field trend and outlier screening
+
+A smooth gradient along a field can be removed before the spatial process
+models what is left, with fixed linear covariates for row and column position
+(Gilmour, Cullis & Verbyla 1997). In a MET each site is adjusted on its own:
+
+```{r, eval = has_asreml}
+trend_fit <- fit_met_model(
+  met_nb$data, met_nb$names,
+  opts = list(structure = "diag", spatial = TRUE, nugget = FALSE,
+              auto_simplify = TRUE, exact_se = FALSE, cinv_limit = 0L,
+              maxit = 25L, workspace = "2gb", compare_baseline = FALSE,
+              max_rounds = 10L,
+              field_trend = list(Env01 = "both", Env03 = "lrow"),
+              outliers = "detect", outlier_threshold = 4)
+)
+
+trend_fit$field_trend_terms
+trend_fit$wald
+trend_fit$outliers$summary
+```
+
+`field_trend` also accepts an unnamed `c("lrow", "lcol")` to adjust every site
+the same way. `outliers = "remove"` sets the response of every flagged plot to
+missing and refits once; `trend_fit$outliers$removed` then lists exactly what
+was withdrawn, and `asreml_script(trend_fit, ...)` writes a script that repeats
+the whole analysis, removal included.
 
 ## The simplification ladder
 

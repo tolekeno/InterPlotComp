@@ -3,6 +3,7 @@
 export(add_neighbours)
 export(app_server)
 export(app_ui)
+export(asreml_script)
 export(build_relationship)
 export(competition_diagnostics)
 export(competition_warnings)

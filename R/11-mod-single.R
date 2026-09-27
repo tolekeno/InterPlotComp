@@ -91,6 +91,21 @@ single_ui <- function(id) {
                        help = "Adds a likelihood-ratio test of whether competition matters."),
           shiny::numericInput(ns("maxit"), "Maximum ASReml iterations", 60,
                               min = 10, max = 1000, step = 10, width = "100%")
+        ),
+
+        bslib::accordion_panel(
+          "6. Global field trend", value = "trend", icon = ic("arrow-up-right"),
+          shiny::checkboxGroupInput(
+            ns("trend_terms"), "Fixed linear trend terms",
+            c("Linear row trend (lrow)" = "lrow",
+              "Linear column trend (lcol)" = "lcol"),
+            selected = character(0), width = "100%"),
+          field_trend_note(multi_env = FALSE)
+        ),
+
+        bslib::accordion_panel(
+          "7. Outlier screening", value = "outliers", icon = ic("exclamation-diamond"),
+          outlier_controls(ns)
         )
       ),
 
@@ -214,7 +229,8 @@ single_ui <- function(id) {
                            figure_ui(ns("fig_vario"), "520px")),
           bslib::nav_panel("Residual table",
                            table_download_ui(ns("dl_resid"), "Download residuals"),
-                           DT::DTOutput(ns("resid")))
+                           DT::DTOutput(ns("resid"))),
+          outlier_panel_ui(ns)
         )
       ),
 
@@ -227,7 +243,8 @@ single_ui <- function(id) {
         panel_card("Model summary", shiny::verbatimTextOutput(ns("summary")),
                    icon_name = "terminal"),
         panel_card("Random effect solutions", DT::DTOutput(ns("solutions")),
-                   icon_name = "list-ol")
+                   icon_name = "list-ol"),
+        asreml_code_ui(ns)
       ),
 
       bslib::nav_panel(
@@ -239,6 +256,8 @@ single_ui <- function(id) {
           shiny::downloadButton(ns("dl_workbook"), "All tables (Excel or CSV)",
                                 class = "btn-primary"),
           shiny::downloadButton(ns("dl_figures"), "All figures (multi-page PDF)",
+                                class = "btn-primary"),
+          shiny::downloadButton(ns("dl_script_export"), "ASReml-R script (.R)",
                                 class = "btn-primary"),
           icon_name = "download", full_screen = FALSE
         )
@@ -486,6 +505,9 @@ single_server <- function(id) {
           row_process = input$row_process %||% "ar1",
           col_process = input$col_process %||% "ar1",
           adjust_own_covariate = isTRUE(input$adjust_own_covariate),
+          field_trend = input$trend_terms,
+          outliers = input$outliers %||% "none",
+          outlier_threshold = input$outlier_threshold %||% DEFAULT_OUTLIER_THRESHOLD,
           relationship = relationship()),
         progress = function(i, n, reason) {
           prog$set(0.15 + 0.7 * i / max(n, 1),
@@ -548,6 +570,17 @@ single_server <- function(id) {
           shiny::div(shiny::strong("Standard errors: "),
                      "exact pure-stand errors were unavailable, so they are ",
                      "left blank rather than approximated.")
+        },
+        if (isTRUE(r$outliers$n_removed > 0)) {
+          shiny::div(shiny::strong("Outliers: "),
+                     sprintf(paste("%d observation(s) were removed and the model",
+                                   "refitted. See Diagnostics \u203a Outliers."),
+                             r$outliers$n_removed))
+        } else if (isTRUE(r$outliers$n_detected > 0)) {
+          shiny::div(shiny::strong("Outliers: "),
+                     sprintf(paste("%d observation(s) exceed the threshold and",
+                                   "were kept. See Diagnostics \u203a Outliers."),
+                             r$outliers$n_detected))
         }
       )
       status_banner(
@@ -617,39 +650,7 @@ single_server <- function(id) {
       dt_table(single_heritability_table(res()), digits = 4, page_length = 5)
     })
     output$fixed_card <- shiny::renderUI({
-      if (!length(res()$covariate_terms)) return(NULL)
-      panel_card(
-        "Covariate",
-        shiny::h6("Wald test"),
-        DT::DTOutput(ns("wald")),
-        note(shiny::strong("Wald test. "),
-             "A conditional F-test of each fixed term, adjusted for the terms ",
-             "above it. ", shiny::strong("Retain = Yes"),
-             " means the term is significant at p < 0.05 and is earning its ",
-             "place; ", shiny::strong("No"),
-             " means the covariate is not explaining variation in yield and can ",
-             "be dropped, which returns the model to a single-trait analysis. ",
-             "The denominator degrees of freedom are computed rather than ",
-             "assumed infinite, so the test is not anti-conservative on a ",
-             "trial-sized dataset."),
-        shiny::h6("Estimated slopes"),
-        DT::DTOutput(ns("fixed_effects")),
-        note("The neighbour slope is the adjustment: it is the change in a ",
-             "plot's yield per unit of the covariate summed over its neighbours. ",
-             "A negative slope means larger neighbours suppress the focal plot, ",
-             "which is interference the model has now removed before estimating ",
-             "the genetic competitive effects. Compare the direct-competition ",
-             "correlation with and without the covariate to see how much of the ",
-             "competition it explains."),
-        note(shiny::strong("Do not compare log-likelihood, AIC or BIC "),
-             "between a run with the covariate and one without. Adding a ",
-             "covariate changes the fixed model, and REML likelihoods are only ",
-             "comparable when the fixed effects are identical. Compare the ",
-             "variance components and the direct-competition correlation ",
-             "instead. The likelihood-ratio test reported elsewhere is ",
-             "unaffected: it compares two models that share whatever fixed ",
-             "effects are in force."),
-        icon_name = "rulers", full_screen = FALSE)
+      fixed_effects_card(ns, res(), multi_env = FALSE)
     })
     output$fixed_effects <- DT::renderDT({
       dt_table(res()$fixed_effects, digits = 5, page_length = 10)
@@ -730,6 +731,17 @@ single_server <- function(id) {
     table_download_server("dl_resid", function() res()$residuals,
                           "interplot_residuals")
 
+    # A single trial is labelled "Trial" internally; when it was taken from a
+    # multi-site file, the outlier report names the site instead.
+    site_relabel <- function(tab) {
+      if (is.null(tab) || !nrow(tab) || is.null(site_levels()) ||
+          is_blank(input$site_value)) return(tab)
+      tab$Environment <- input$site_value
+      tab
+    }
+    register_outlier_outputs(output, res, safe_result, "interplot_outliers",
+                             relabel = site_relabel)
+
     # ---- model detail -----------------------------------------------------
     output$model_detail <- shiny::renderUI({
       r <- res()
@@ -758,7 +770,8 @@ single_server <- function(id) {
           } else {
             paste("Approximate for individual effects; pure-stand errors are",
                   "not reported because the required covariance was unavailable.")
-          })
+          }),
+          model_detail_extras(r, multi_env = FALSE)
         ),
         if (length(r$warnings)) {
           status_banner("warn", "ASReml warnings",
@@ -776,6 +789,23 @@ single_server <- function(id) {
                        check.names = FALSE)
       dt_table(cr, digits = 5, page_length = 20)
     })
+
+    script_lines <- function() {
+      asreml_script(
+        res(), data_file = input$file$name,
+        map = list(yield = input$yield_col, geno = input$geno_col,
+                   row = input$row_col, column = input$column_col,
+                   rep = input$rep_col, block = input$block_col,
+                   covariate = input$covariate_col),
+        axis = input$axis, sep = input$separator, header = isTRUE(input$header),
+        site = if (!is.null(site_levels())) {
+          list(column = input$site_col, value = input$site_value)
+        })
+    }
+    register_asreml_code(output, script_lines, "interplot_single_trial_asreml")
+    output$dl_script_export <- shiny::downloadHandler(
+      filename = function() stamped("interplot_single_trial_asreml", "R"),
+      content = function(file) writeLines(script_lines(), file))
 
     # ---- exports ----------------------------------------------------------
     output$sample <- shiny::downloadHandler(
@@ -796,13 +826,18 @@ single_server <- function(id) {
           `Predicted relatives` = genetic_split()$inferred,
           `Heritability` = single_heritability_table(r),
           `Wald tests` = r$wald,
+          `Fixed effects` = r$fixed_effects,
+          `Field trend` = field_trend_table(r$field_trend, "Trial", FALSE),
+          `Outlier summary` = site_relabel(r$outliers$summary),
+          `Outliers` = site_relabel(r$outliers$table),
           `Variance summary` = r$variance,
           `ASReml variance parameters` = r$varcomp,
           `Model comparison` = r$comparison$table,
           `Residuals` = r$residuals,
           `Field summary` = attr(prepared(), "field_summary"),
           `Relationship` = relationship_export(r),
-          `Fitting log` = data.frame(Step = r$log)
+          `Fitting log` = data.frame(Step = r$log),
+          `ASReml script` = data.frame(Line = script_lines())
         ), file)
       }
     )

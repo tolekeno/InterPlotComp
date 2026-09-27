@@ -168,11 +168,25 @@ single_specifications <- function(structure, spatial, nugget, design_terms,
 #'
 #' @param d prepared trial data (already grid-completed if spatial)
 #' @param neighbour_names N1..Nk
-#' @param opts list of user options
+#' @param opts list of user options. Besides the model settings it takes
+#'   `field_trend`, the linear field-trend covariates to fit as fixed effects
+#'   (`"lrow"`, `"lcol"`, `c("lrow", "lcol")` or `"both"`; Gilmour, Cullis &
+#'   Verbyla 1997), and `outliers` (`"none"`, `"detect"` or `"remove"`) with
+#'   `outlier_threshold` (default 4) for screening on standardised conditional
+#'   residuals. See [fit_met_model()] for the details, which are shared.
 #' @param progress optional function(i, n, reason) for the busy indicator
 #' @return a rich result list consumed by the UI
 #' @export
 fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
+  opts$field_trend <- normalise_field_trend(opts$field_trend, levels(d$Env))
+  with_outlier_screening(d, opts, function(data, o) {
+    fit_single_once(data, neighbour_names, o, progress)
+  })
+}
+
+#' One pass of the single-trial fit: ladder, convergence, extraction.
+#' @noRd
+fit_single_once <- function(d, neighbour_names, opts, progress = NULL) {
   load_asreml()
 
   relationship <- opts$relationship
@@ -213,7 +227,12 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
   # likelihood-ratio test still compares two models with identical fixed
   # effects and tests only the genetic competitive effects.
   covariate_terms <- covariate_fixed_terms(d, opts$adjust_own_covariate)
-  fixed_text <- paste(c("Yield ~ 1", covariate_terms), collapse = " + ")
+  # The linear trend covariates are fixed effects in both models for the same
+  # reason.
+  trend <- opts$field_trend
+  trend_terms <- field_trend_fixed_terms(trend, levels(d$Env), multi_env = FALSE)
+  if (length(trend_terms)) d <- add_trend_covariates(d)
+  fixed_text <- paste(c("Yield ~ 1", covariate_terms, trend_terms), collapse = " + ")
 
   fit_one <- function(spec, competition = TRUE) {
     f <- single_formulae(spec$design_terms, neighbour_names, n_geno,
@@ -273,6 +292,8 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
                                     in_trial = levels(droplevels(
                                       d$Geno[!is.na(d$Yield)])))
 
+  outliers <- screen_fit(fit, d, outlier_settings(opts))
+
   # ---- baseline comparison ------------------------------------------------
   # A competition model is only worth reporting if competition improves the
   # fit. The reduced model keeps the identical fixed and residual structure and
@@ -322,12 +343,25 @@ fit_single_model <- function(d, neighbour_names, opts, progress = NULL) {
     convergence_rounds = extra$rounds,
     covariate_terms = covariate_terms,
     covariate_name = attr(d, "covariate_name"),
+    field_trend = trend,
+    field_trend_terms = trend_terms,
+    outliers = outliers,
     log = run$log,
     warnings = run$warnings,
     fallback_used = !identical(spec$reason, "Requested model"),
     converged = isTRUE(fit$converge),
-    description = describe_single_model(spec, k, relationship, covariate_terms),
-    residuals = residual_frame(fit, d)
+    description = describe_single_model(spec, k, relationship, covariate_terms,
+                                        trend),
+    residuals = residual_frame(fit, d, outliers),
+    model_code = model_code_record(
+      fixed_text,
+      single_formulae(spec$design_terms, neighbour_names, n_geno,
+                      spec$structure, spec$spatial, spec$nugget,
+                      kinship = use_kinship,
+                      row_process = spec$row_process %||% "ar1",
+                      col_process = spec$col_process %||% "ar1"),
+      neighbour_names, opts, multi_env = FALSE, spatial = isTRUE(spec$spatial),
+      kinship = relationship, trend = trend)
   )
 }
 
@@ -524,7 +558,7 @@ single_variance_table <- function(fit, parts, spec, k) {
 #' One-sentence description of what was actually fitted.
 #' @noRd
 describe_single_model <- function(spec, k, relationship = NULL,
-                                 covariate_terms = character(0)) {
+                                 covariate_terms = character(0), trend = NULL) {
   genetic <- switch(
     spec$structure,
     us    = "unstructured us(2) direct-competition covariance",
@@ -549,13 +583,22 @@ describe_single_model <- function(spec, k, relationship = NULL,
                "the neighbouring and own-plot values of the covariate"
              } else "the neighbouring plots' covariate")
     } else "",
+    if (!is.null(trend) && nrow(trend)) {
+      paste0(", fixed global field trend: ", describe_field_trend(trend, FALSE))
+    } else "",
     sprintf("; %d competing neighbours", k)
   )
 }
 
 #' Residuals and fitted values joined to the field layout, for diagnostics.
+#'
+#' When the outlier screen ran, its standardised conditional residuals are
+#' used, so the diagnostics show exactly the values the screen judged, and
+#' each record is marked against the threshold.
+#'
+#' @param outliers the result of `screen_fit()`, or NULL
 #' @noRd
-residual_frame <- function(fit, d) {
+residual_frame <- function(fit, d, outliers = NULL) {
   r <- as.numeric(stats::residuals(fit))
   f <- as.numeric(stats::fitted(fit))
   n <- nrow(d)
@@ -566,7 +609,13 @@ residual_frame <- function(fit, d) {
     Fitted = f, Residual = r, Padded = d$Padded,
     stringsAsFactors = FALSE
   )
-  out$Std_residual <- out$Residual / stats::sd(out$Residual[!out$Padded], na.rm = TRUE)
+  std <- outliers$std
+  if (!is.null(std) && length(std) == n) {
+    out$Std_residual <- std
+    out$Outlier <- !is.na(std) & abs(std) > outliers$threshold
+  } else {
+    out$Std_residual <- out$Residual / stats::sd(out$Residual[!out$Padded], na.rm = TRUE)
+  }
   out[!out$Padded & !is.na(out$Observed), , drop = FALSE]
 }
 

@@ -175,14 +175,12 @@ test_that("met_formulae builds the factor-analytic structures", {
                "dsum(~ar1(Column):ar1(Row)|Env)", fixed = TRUE)
 })
 
-test_that("met_formulae keeps an fa() term outside str()", {
-  # Verified against ASReml 4.2: fa() inside str() fails on a direct-product
-  # size mismatch, because ASReml adds its own latent-factor levels.
-  f <- met_formulae("RepF", c("N1", "N2"), 40, 4, structure = "fa", rank = 1,
+test_that("met_formulae builds the diagonal structure inside str()", {
+  f <- met_formulae("RepF", c("N1", "N2"), 40, 4, structure = "diag",
                     spatial = TRUE, nugget = FALSE)
   txt <- formula_text(f$random)
-  expect_false(grepl("str(", txt, fixed = TRUE))
-  expect_match(txt, "fa(Env,1):Geno", fixed = TRUE)
+  expect_match(txt, "diag(EffectEnv):id(40)", fixed = TRUE)
+  expect_match(txt, "and(Env:N2)", fixed = TRUE)
 })
 
 test_that("met_formulae rejects an unknown covariance structure", {

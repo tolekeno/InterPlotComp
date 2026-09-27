@@ -331,9 +331,6 @@ guide_ui <- function(id) {
                            "direct and competitive effects have different ",
                            "patterns of genotype-by-environment interaction. ",
                            "Most general; needs the most data."),
-            shiny::tags$li(shiny::strong("Separable us(2) x FA"), " assumes one ",
-                           "shared environment correlation pattern. Far fewer ",
-                           "parameters, so it fits when the joint model cannot."),
             shiny::tags$li(shiny::strong("Diagonal"), " estimates no ",
                            "between-environment correlation at all. Use it as ",
                            "the null model, not as a result.")
@@ -341,6 +338,36 @@ guide_ui <- function(id) {
           shiny::p("Genetic correlations rest on the genotypes shared between ",
                    "environments. With fewer than about five genotypes in ",
                    "common, treat them as indicative only.")
+        ),
+
+        bslib::accordion_panel(
+          "Field trend and outliers", value = "trend", icon = ic("arrow-up-right"),
+          shiny::h5("Global field trend"),
+          shiny::p("Following Gilmour, Cullis & Verbyla (1997), a smooth ",
+                   "gradient along the field is removed with fixed linear ",
+                   "covariates for row (", shiny::code("lrow"), ") and column (",
+                   shiny::code("lcol"), ") position before the spatial process ",
+                   "models what is left. In a MET each site is adjusted on its ",
+                   "own - one site, several, or all - with ", shiny::code("lrow"),
+                   ", ", shiny::code("lcol"), " or both, and each gets its own ",
+                   "slope: ", shiny::code("at(Env, \"Site 1\"):lrow"), ". Look ",
+                   "at the Wald test afterwards and drop a slope that is not ",
+                   "significant."),
+          shiny::h5("Phenotypic outliers"),
+          shiny::p("With outlier screening on, the selected model is fitted and ",
+                   "each observation's standardised conditional residual - its ",
+                   "residual divided by its own standard error - is computed. ",
+                   "Observations beyond |4| are flagged. ",
+                   shiny::em("Detect and report only"), " lists them; ",
+                   shiny::em("Detect, remove, then refit"), " also sets their ",
+                   "response to missing and fits the model again, once. The ",
+                   "plot itself stays in the field, because its genotype still ",
+                   "competes with the neighbours."),
+          shiny::p("Every flagged and removed record is listed under ",
+                   shiny::em("Diagnostics › Outliers"), ", written to the ",
+                   "results workbook, and reproduced in the ASReml-R script, so ",
+                   "the analysis can be repeated exactly. Check a flagged plot ",
+                   "against the field book before removing it.")
         )
       )
     ),

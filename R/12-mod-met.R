@@ -34,14 +34,12 @@ met_ui <- function(id) {
                        MET_STRUCTURES, "facv"),
           shiny::uiOutput(ns("rank_ui")),
           note("The joint structure lets direct and competitive effects have ",
-               "different patterns of genotype-by-environment interaction. The ",
-               "separable structure assumes one shared pattern but uses far ",
-               "fewer parameters, so it fits when the joint model cannot. ",
-               shiny::strong("Separate fa()"), " fits an ordinary ",
-               shiny::code("fa()"), " term to each effect, which ASReml ",
-               "cannot do inside the joint block; the price is that the ",
-               "direct-competition covariance becomes a structural zero ",
-               "rather than an estimate.")
+               "different patterns of genotype-by-environment interaction and ",
+               "estimates the direct-competition covariance in every ",
+               "environment. The diagonal structure is its nested null model: ",
+               "environment-specific variances with no genetic correlation ",
+               "between sites. If the joint model is singular, lower the ",
+               "factor-analytic rank before falling back to the diagonal.")
         ),
         bslib::accordion_panel(
           "4. Genetic relationship", value = "relationship",
@@ -79,6 +77,21 @@ met_ui <- function(id) {
                        "Compare against a no-competition model", TRUE),
           shiny::numericInput(ns("maxit"), "Maximum ASReml iterations", 80,
                               min = 10, max = 1000, step = 10, width = "100%")
+        ),
+        bslib::accordion_panel(
+          "6. Global field trend", value = "trend", icon = ic("arrow-up-right"),
+          switch_input(ns("trend_on"), "Adjust for global field trend (lrow / lcol)",
+                       FALSE),
+          shiny::conditionalPanel(
+            sprintf("input['%s'] == true", ns("trend_on")),
+            shiny::uiOutput(ns("trend_sites_ui")),
+            shiny::uiOutput(ns("trend_terms_ui"))
+          ),
+          field_trend_note(multi_env = TRUE)
+        ),
+        bslib::accordion_panel(
+          "7. Outlier screening", value = "outliers", icon = ic("exclamation-diamond"),
+          outlier_controls(ns)
         )
       ),
 
@@ -188,7 +201,6 @@ met_ui <- function(id) {
         panel_card("Genetic variance by environment",
                    table_download_ui(ns("dl_variance"), "Download variances"),
                    DT::DTOutput(ns("variance")),
-                   shiny::uiOutput(ns("dc_note")),
                    icon_name = "calculator",
                    full_screen = FALSE),
         shiny::uiOutput(ns("fixed_card")),
@@ -212,7 +224,8 @@ met_ui <- function(id) {
           bslib::nav_panel("Residual diagnostics", figure_ui(ns("fig_diag"), "720px")),
           bslib::nav_panel("Residual table",
                            table_download_ui(ns("dl_resid"), "Download residuals"),
-                           DT::DTOutput(ns("resid")))
+                           DT::DTOutput(ns("resid"))),
+          outlier_panel_ui(ns)
         )
       ),
 
@@ -223,7 +236,8 @@ met_ui <- function(id) {
         panel_card("Fitting log", shiny::verbatimTextOutput(ns("log")),
                    icon_name = "journal-text", full_screen = FALSE),
         panel_card("Model summary", shiny::verbatimTextOutput(ns("summary")),
-                   icon_name = "terminal")
+                   icon_name = "terminal"),
+        asreml_code_ui(ns)
       ),
 
       bslib::nav_panel(
@@ -234,6 +248,11 @@ met_ui <- function(id) {
                                 class = "btn-primary"),
           shiny::downloadButton(ns("dl_figures"), "All figures (multi-page PDF)",
                                 class = "btn-primary"),
+          shiny::downloadButton(ns("dl_script_export"), "ASReml-R script (.R)",
+                                class = "btn-primary"),
+          note("The workbook records the field-trend specification and every ",
+               "flagged or removed observation, and the script reproduces the ",
+               "final fit, outlier removal included."),
           icon_name = "download", full_screen = FALSE)
       )
     )
@@ -316,6 +335,67 @@ met_server <- function(id) {
           list(ok = FALSE, pending = inherits(e, "shiny.silent.error"),
                message = conditionMessage(e))
         })
+    })
+
+    # ---- global field trend ------------------------------------------------
+    env_levels <- shiny::reactive({
+      z <- safe_prepared()
+      if (!isTRUE(z$ok)) return(character(0))
+      levels(z$data$Env)
+    })
+
+    output$trend_sites_ui <- shiny::renderUI({
+      levs <- env_levels()
+      if (!length(levs)) {
+        return(note("Load and map the data to choose sites."))
+      }
+      keep <- intersect(shiny::isolate(input$trend_sites) %||% levs, levs)
+      shiny::tagList(
+        shiny::selectizeInput(ns("trend_sites"), "Sites to adjust", levs,
+                              selected = keep, multiple = TRUE, width = "100%",
+                              options = list(plugins = list("remove_button"))),
+        shiny::div(class = "fig-toolbar",
+                   shiny::actionLink(ns("trend_all"), "All sites"),
+                   shiny::actionLink(ns("trend_none"), "Clear"))
+      )
+    })
+    shiny::outputOptions(output, "trend_sites_ui", suspendWhenHidden = FALSE)
+
+    shiny::observeEvent(input$trend_all, {
+      shiny::updateSelectizeInput(session, "trend_sites", selected = env_levels())
+    })
+    shiny::observeEvent(input$trend_none, {
+      shiny::updateSelectizeInput(session, "trend_sites", selected = character(0))
+    })
+
+    # One term selector per selected site. Inputs are keyed by the site's
+    # position, because site names need not be valid input ids; a choice
+    # already made survives the list being re-rendered.
+    trend_input_id <- function(site) paste0("trend_site_", match(site, env_levels()))
+    output$trend_terms_ui <- shiny::renderUI({
+      sites <- intersect(input$trend_sites, env_levels())
+      if (!length(sites)) {
+        return(note("No site selected: no trend terms will be fitted."))
+      }
+      shiny::tagList(
+        shiny::tags$label(class = "control-label", "Terms at each site"),
+        lapply(sites, function(site) {
+          id <- trend_input_id(site)
+          shiny::selectInput(ns(id), site, FIELD_TREND_CHOICES,
+                             selected = shiny::isolate(input[[id]]) %||% "both",
+                             width = "100%")
+        })
+      )
+    })
+    shiny::outputOptions(output, "trend_terms_ui", suspendWhenHidden = FALSE)
+
+    trend_spec <- shiny::reactive({
+      if (!isTRUE(input$trend_on)) return(NULL)
+      sites <- intersect(input$trend_sites, env_levels())
+      if (!length(sites)) return(NULL)
+      stats::setNames(lapply(sites, function(site) {
+        input[[trend_input_id(site)]] %||% "both"
+      }), sites)
     })
 
     output$rank_ui <- shiny::renderUI({
@@ -425,6 +505,11 @@ met_server <- function(id) {
 
       blocked <- relationship_blocking_message(input[["rel-source"]], relationship())
       if (!is.null(blocked)) stop(blocked)
+      if (isTRUE(input$trend_on) && is.null(trend_spec())) {
+        stop("The global field-trend adjustment is on but no site is selected. ",
+             "Choose at least one site under 'Global field trend', or turn the ",
+             "adjustment off.")
+      }
 
       prog <- shiny::Progress$new(session, min = 0, max = 1)
       on.exit(prog$close(), add = TRUE)
@@ -447,6 +532,9 @@ met_server <- function(id) {
           row_process = input$row_process %||% "ar1",
           col_process = input$col_process %||% "ar1",
           adjust_own_covariate = isTRUE(input$adjust_own_covariate),
+          field_trend = trend_spec(),
+          outliers = input$outliers %||% "none",
+          outlier_threshold = input$outlier_threshold %||% DEFAULT_OUTLIER_THRESHOLD,
           relationship = relationship()),
         progress = function(i, n, reason) {
           prog$set(0.15 + 0.7 * i / max(n, 1),
@@ -503,15 +591,16 @@ met_server <- function(id) {
                        "the requested model was not identifiable; a nested model ",
                        "was used. See ", shiny::em("Model detail"), ".")
           },
-          if (isTRUE(r$dc_covariance_fixed)) {
-            shiny::div(
-              shiny::strong("The direct-competition covariance is fixed at zero. "),
-              "Separate fa() terms make the direct and competitive effects ",
-              "independent by construction, so that covariance is not an ",
-              "estimate and cannot be tested. Pure-stand variance reduces to ",
-              "Var(D) + k\u00b2 Var(C) and will be overstated wherever the two ",
-              "effects are in fact negatively correlated. Use the joint ",
-              "factor-analytic structure to estimate it.")
+          if (isTRUE(r$outliers$n_removed > 0)) {
+            shiny::div(shiny::strong("Outliers: "),
+                       sprintf(paste("%d observation(s) were removed and the model",
+                                     "refitted. See Diagnostics \u203a Outliers."),
+                               r$outliers$n_removed))
+          } else if (isTRUE(r$outliers$n_detected > 0)) {
+            shiny::div(shiny::strong("Outliers: "),
+                       sprintf(paste("%d observation(s) exceed the threshold and",
+                                     "were kept. See Diagnostics \u203a Outliers."),
+                               r$outliers$n_detected))
           },
           if (r$correlations_assumed) {
             shiny::div(shiny::strong("Genetic correlations were not estimated. "),
@@ -570,51 +659,13 @@ met_server <- function(id) {
                           "met_genetic_values_relatives")
 
     output$variance <- DT::renderDT({ dt_table(res()$variance, digits = 5, page_length = 10) })
-    output$dc_note <- shiny::renderUI({
-      if (!isTRUE(res()$dc_covariance_fixed)) return(NULL)
-      note(shiny::strong("Direct-competition covariance and correlation are ",
-                         "zero by construction, not estimated. "),
-           "The fitted structure makes the two effects independent, so the ",
-           "pure-stand variance omits the 2k Cov(D, C) term. Where that ",
-           "covariance is negative, as it usually is, the pure-stand ",
-           "variance shown here is an overestimate.")
-    })
     table_download_server("dl_variance", function() res()$variance, "met_environment_variances")
     output$varcomp <- DT::renderDT({ dt_table(res()$varcomp, digits = 5, page_length = 15) })
     output$heritability <- DT::renderDT({
       dt_table(met_heritability_table(res()), digits = 4, page_length = 10)
     })
     output$fixed_card <- shiny::renderUI({
-      if (!length(res()$covariate_terms)) return(NULL)
-      panel_card(
-        "Covariate",
-        shiny::h6("Wald test"),
-        DT::DTOutput(ns("wald")),
-        note(shiny::strong("Wald test. "),
-             "A conditional F-test of each fixed term, adjusted for the terms ",
-             "above it. ", shiny::strong("Retain = Yes"),
-             " means the term is significant at p < 0.05 and is earning its ",
-             "place; ", shiny::strong("No"),
-             " means the covariate is not explaining variation in yield and can ",
-             "be dropped, which returns the model to a single-trait analysis. ",
-             "The denominator degrees of freedom are computed rather than ",
-             "assumed infinite, so the test is not anti-conservative on a ",
-             "trial-sized dataset."),
-        shiny::h6("Estimated slopes"),
-        DT::DTOutput(ns("fixed_effects")),
-        note("The neighbour slope is the change in a plot's yield per unit of ",
-             "the covariate summed over its neighbours, fitted in common across ",
-             "environments. A negative slope means larger neighbours suppress ",
-             "the focal plot."),
-        note(shiny::strong("Do not compare log-likelihood, AIC or BIC "),
-             "between a run with the covariate and one without. Adding a ",
-             "covariate changes the fixed model, and REML likelihoods are only ",
-             "comparable when the fixed effects are identical. Compare the ",
-             "variance components and the direct-competition correlation ",
-             "instead. The likelihood-ratio test reported elsewhere is ",
-             "unaffected: it compares two models that share whatever fixed ",
-             "effects are in force."),
-        icon_name = "rulers", full_screen = FALSE)
+      fixed_effects_card(ns, res(), multi_env = TRUE)
     })
     output$fixed_effects <- DT::renderDT({
       dt_table(res()$fixed_effects, digits = 5, page_length = 12)
@@ -732,6 +783,7 @@ met_server <- function(id) {
 
     output$resid <- DT::renderDT({ dt_table(res()$residuals, digits = 4) })
     table_download_server("dl_resid", function() res()$residuals, "met_residuals")
+    register_outlier_outputs(output, res, safe_result, "met_outliers")
 
     # ---- model detail -----------------------------------------------------
     output$model_detail <- shiny::renderUI({
@@ -758,7 +810,8 @@ met_server <- function(id) {
             "Exact, from the inverse mixed-model coefficient matrix."
           } else {
             "Pure-stand errors are not reported because the required covariance was unavailable."
-          })
+          }),
+          model_detail_extras(r, multi_env = TRUE)
         ),
         if (length(r$warnings)) {
           status_banner("warn", "ASReml warnings",
@@ -767,6 +820,20 @@ met_server <- function(id) {
     })
     output$log <- shiny::renderText({ format_attempt_log(res()$log) })
     output$summary <- shiny::renderPrint({ print_model_summary(res()) })
+
+    script_lines <- function() {
+      asreml_script(
+        res(), data_file = input$file$name,
+        map = list(env = input$env_col, yield = input$yield_col,
+                   geno = input$geno_col, row = input$row_col,
+                   column = input$column_col, rep = input$rep_col,
+                   block = input$block_col, covariate = input$covariate_col),
+        axis = input$axis, sep = input$separator, header = isTRUE(input$header))
+    }
+    register_asreml_code(output, script_lines, "interplot_met_asreml")
+    output$dl_script_export <- shiny::downloadHandler(
+      filename = function() stamped("interplot_met_asreml", "R"),
+      content = function(file) writeLines(script_lines(), file))
 
     # ---- exports ----------------------------------------------------------
     output$sample <- shiny::downloadHandler(
@@ -786,6 +853,10 @@ met_server <- function(id) {
           `Predicted relatives` = values_split()$inferred,
           `Heritability` = met_heritability_table(r),
           `Wald tests` = r$wald,
+          `Fixed effects` = r$fixed_effects,
+          `Field trend` = field_trend_table(r$field_trend, r$environments, TRUE),
+          `Outlier summary` = r$outliers$summary,
+          `Outliers` = r$outliers$table,
           `Environment variances` = r$variance,
           `Correlations` = correlation_long(),
           `Factor analytic fit` = r$fa_summary,
@@ -794,7 +865,8 @@ met_server <- function(id) {
           `Residuals` = r$residuals,
           `Environment summary` = attr(prepared(), "field_summary"),
           `Relationship` = relationship_export(r),
-          `Fitting log` = data.frame(Step = r$log)
+          `Fitting log` = data.frame(Step = r$log),
+          `ASReml script` = data.frame(Line = script_lines())
         ), file)
       })
 

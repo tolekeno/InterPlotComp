@@ -140,26 +140,137 @@ test_that("a factor-analytic MET estimates between-environment correlation", {
   expect_s3_class(plot_correlation_heatmap(cors, "Direct effects"), "ggplot")
 })
 
-test_that("a separable MET crosses one 2x2 covariance with the environments", {
+test_that("the withdrawn MET structures are refused before anything is fitted", {
+  # No ASReml needed: the check runs before the licence is touched.
+  nb <- prepared_met()
+  expect_error(fit_met_model(nb$data, nb$names, met_options(structure = "separable")),
+               "removed in InterPlotComp 3.9.0")
+  expect_error(fit_met_model(nb$data, nb$names, met_options(structure = "fa")),
+               "structure = \"facv\"", fixed = TRUE)
+})
+
+test_that("the MET fallback ladder never lands on a withdrawn structure", {
   skip_without_asreml()
   nb <- prepared_met()
   res <- fit_met_model(nb$data, nb$names,
-                       met_options(structure = "separable", rank = 1L))
-  expect_true(res$converged)
-  expect_match(res$structure_note, "[Ss]eparable")
-  expect_equal(dim(res$matrices$pure),
-               rep(length(res$environments), 2L))
+                       met_options(structure = "facv", rank = 3L, nugget = TRUE))
+  expect_true(res$spec$structure %in% c("facv", "diag"))
+  expect_false(any(grepl("[Ss]eparable|fa\\(\\) per effect", res$log)))
 })
 
-test_that("separate fa() terms leave the direct-competition covariance at zero", {
+test_that("a per-site field trend enters the fixed model as at(Env, site) slopes", {
   skip_without_asreml()
   nb <- prepared_met()
-  res <- fit_met_model(nb$data, nb$names, met_options(structure = "fa", rank = 1L))
+  res <- fit_met_model(nb$data, nb$names, met_options(
+    structure = "diag", field_trend = list(Env01 = "both", Env03 = "lrow")))
+
   expect_true(res$converged)
-  # Structurally zero, not estimated: the interface must be able to say so.
-  expect_true(res$dc_covariance_fixed)
-  expect_true(all(abs(res$matrices$direct_competition) < 1e-10))
-  expect_match(res$structure_note, "zero by construction")
+  fixed <- formula_text(res$fit$formulae$fixed)
+  expect_match(fixed, 'at(Env,c("Env01","Env03")):lrow', fixed = TRUE)
+  expect_match(fixed, 'at(Env,"Env01"):lcol', fixed = TRUE)
+  # One slope per selected site, and none for the sites left alone.
+  wald_terms <- res$wald$Term
+  expect_true("Linear row trend (lrow), Env01" %in% wald_terms)
+  expect_true("Linear row trend (lrow), Env03" %in% wald_terms)
+  expect_true("Linear column trend (lcol), Env01" %in% wald_terms)
+  expect_false(any(grepl("Env02|Env04", wald_terms[grepl("trend", wald_terms)])))
+
+  expect_match(res$description, "linear row and column trends at Env01")
+  expect_equal(res$field_trend$Environment, c("Env01", "Env03"))
+  expect_true(all(c("lrow", "lcol") %in% names(res$data)))
+})
+
+test_that("the field trend is carried by the no-competition baseline too", {
+  skip_without_asreml()
+  nb <- prepared_met()
+  res <- fit_met_model(nb$data, nb$names, met_options(
+    structure = "diag", compare_baseline = TRUE, field_trend = c("lrow", "lcol")))
+  expect_false(is.null(res$comparison))
+  expect_true(all(c("at(Env):lrow", "at(Env):lcol") %in% res$field_trend_terms))
+  expect_true(res$comparison$lrt$p_value >= 0 && res$comparison$lrt$p_value <= 1)
+})
+
+# A MET with one plot pushed far off its expected value.
+met_with_outlier <- function() {
+  raw <- sample_met_trial()
+  i <- which(raw$Environment == "Env02")[10]
+  raw$Yield_t_ha[i] <- raw$Yield_t_ha[i] + 6
+  d <- prepare_trial_data(raw, met_map(), multi_env = TRUE)
+  list(raw = raw, row = raw$Row[i], column = raw$Column[i],
+       genotype = raw$Genotype[i],
+       nb = add_neighbours(complete_field_grid(d), "rows"))
+}
+
+test_that("outlier detection flags the corrupted plot and leaves the fit alone", {
+  skip_without_asreml()
+  x <- met_with_outlier()
+  res <- fit_met_model(x$nb$data, x$nb$names,
+                       met_options(structure = "diag", outliers = "detect"))
+
+  o <- res$outliers
+  expect_equal(o$mode, "detect")
+  expect_equal(o$threshold, 4)
+  expect_match(o$method, "stdCond")
+  expect_gte(o$n_detected, 1L)
+  expect_equal(o$n_removed, 0L)
+  top <- o$table[1, ]
+  expect_equal(top$Environment, "Env02")
+  expect_equal(top$Genotype, as.character(x$genotype))
+  expect_equal(top$Field_row, as.character(x$row))
+  expect_gt(abs(top$Std_residual), 4)
+  expect_equal(top$Action, "Flagged, retained")
+  # Detection only: the record is still in the fitted data.
+  hit <- res$data$Env == "Env02" & res$data$Row_i == top$Row_index &
+    res$data$Col_i == top$Column_index
+  expect_false(is.na(res$data$Yield[hit]))
+  expect_equal(o$summary$Outliers_detected[o$summary$Environment == "Env02"],
+               sum(o$table$Environment == "Env02"))
+  expect_true("Outlier" %in% names(res$residuals))
+  expect_match(res$description, "outlier screen")
+})
+
+test_that("outlier removal refits without the flagged records and records them", {
+  skip_without_asreml()
+  x <- met_with_outlier()
+  res <- fit_met_model(x$nb$data, x$nb$names,
+                       met_options(structure = "diag", outliers = "remove"))
+
+  o <- res$outliers
+  expect_gte(o$n_removed, 1L)
+  expect_equal(nrow(o$removed), o$n_removed)
+  expect_true(all(o$removed$Action == "Removed before refit"))
+  # The removed plots are still in the data - still competing - but have no
+  # response in the refit.
+  key <- paste(res$data$Env, res$data$Row_i, res$data$Col_i)
+  gone <- key %in% paste(o$removed$Environment, o$removed$Row_index,
+                         o$removed$Column_index)
+  expect_equal(sum(gone), o$n_removed)
+  expect_true(all(is.na(res$data$Yield[gone])))
+  expect_false(any(paste(res$residuals$Env, res$residuals$Row, res$residuals$Column) %in%
+                     key[gone]))
+
+  expect_true(any(grepl("^Initial fit:", res$log)))
+  expect_true(any(grepl("^Refit without them:", res$log)))
+  expect_false(is.null(o$initial_fit_stats))
+  expect_match(res$description, "removed before refitting")
+  expect_equal(nrow(res$model_code$removed), o$n_removed)
+})
+
+test_that("the exported ASReml script reproduces the fitted MET", {
+  skip_without_asreml()
+  x <- met_with_outlier()
+  res <- fit_met_model(x$nb$data, x$nb$names, met_options(
+    structure = "facv", outliers = "remove",
+    field_trend = list(Env01 = "both", Env03 = "lrow")))
+
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(x$raw, csv, row.names = FALSE)
+  script <- asreml_script(res, data_file = csv, map = met_map(), axis = "rows")
+  expect_match(paste(script, collapse = "\n"), "removed <- data.frame", fixed = TRUE)
+
+  run <- new.env()
+  utils::capture.output(suppressWarnings(eval(parse(text = script), envir = run)))
+  expect_equal(run$fit$loglik, res$fit$loglik, tolerance = 1e-4)
 })
 
 test_that("the MET fallback ladder records what it gave up", {
@@ -201,4 +312,51 @@ test_that("the MET baseline comparison runs a valid likelihood-ratio test", {
   lrt <- res$comparison$lrt
   expect_true(lrt$p_value >= 0 && lrt$p_value <= 1)
   expect_gt(lrt$df, 0)
+})
+
+test_that("the MET workspace passes field trend and outlier settings to the fit", {
+  skip_without_asreml()
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(sample_met_trial(), csv, row.names = FALSE)
+  shiny::testServer(met_server, {
+    session$setInputs(file = list(datapath = csv, name = "met.csv"), header = TRUE,
+                      separator = ",", env_col = "Environment",
+                      yield_col = "Yield_t_ha", geno_col = "Genotype",
+                      row_col = "Row", column_col = "Column", rep_col = "Rep",
+                      block_col = "Block", covariate_col = "", axis = "rows",
+                      structure = "diag", rank = "1", spatial = TRUE,
+                      nugget = FALSE, auto_simplify = TRUE, exact_se = FALSE,
+                      compare_baseline = FALSE, maxit = 25,
+                      row_process = "ar1", col_process = "ar1",
+                      outliers = "detect", outlier_threshold = 4)
+    session$setInputs(trend_on = TRUE, trend_sites = c("Env02", "Env04"),
+                      trend_site_2 = "lcol", trend_site_4 = "both")
+    session$setInputs(run = 1)
+
+    r <- result()
+    expect_equal(r$field_trend$Environment, c("Env02", "Env04"))
+    expect_equal(r$field_trend_terms,
+                 c('at(Env, "Env04"):lrow', 'at(Env, c("Env02", "Env04")):lcol'))
+    expect_equal(r$outliers$mode, "detect")
+    expect_match(output$script, 'at(Env, "Env04"):lrow', fixed = TRUE)
+    expect_match(output$script, '"met.csv"', fixed = TRUE)
+  })
+})
+
+test_that("the MET workspace refuses a field trend with no site selected", {
+  skip_without_asreml()
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(sample_met_trial(), csv, row.names = FALSE)
+  shiny::testServer(met_server, {
+    session$setInputs(file = list(datapath = csv, name = "met.csv"), header = TRUE,
+                      separator = ",", env_col = "Environment",
+                      yield_col = "Yield_t_ha", geno_col = "Genotype",
+                      row_col = "Row", column_col = "Column", rep_col = "",
+                      block_col = "", covariate_col = "", axis = "rows",
+                      structure = "diag", maxit = 25, spatial = TRUE)
+    session$setInputs(trend_on = TRUE, trend_sites = character(0))
+    session$setInputs(run = 1)
+    expect_false(safe_result()$ok)
+    expect_match(safe_result()$message, "no site is selected")
+  })
 })

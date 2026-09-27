@@ -11,7 +11,12 @@ fit_single_model(d, neighbour_names, opts, progress = NULL)
 
 \item{neighbour_names}{N1..Nk}
 
-\item{opts}{list of user options}
+\item{opts}{list of user options. Besides the model settings it takes
+\code{field_trend}, the linear field-trend covariates to fit as fixed effects
+(\code{"lrow"}, \code{"lcol"}, \code{c("lrow", "lcol")} or \code{"both"}; Gilmour, Cullis &
+Verbyla 1997), and \code{outliers} (\code{"none"}, \code{"detect"} or \code{"remove"}) with
+\code{outlier_threshold} (default 4) for screening on standardised conditional
+residuals. See \code{\link[=fit_met_model]{fit_met_model()}} for the details, which are shared.}
 
 \item{progress}{optional function(i, n, reason) for the busy indicator}
 }
