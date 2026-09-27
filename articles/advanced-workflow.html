@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -151,25 +151,15 @@ matrix:</p>
 competitive effects</td>
 <td>most</td>
 </tr>
-<tr class="odd">
-<td><code>"separable"</code></td>
-<td>One 2×2 direct–competition covariance crossed with one environment
-covariance</td>
-<td>middle</td>
-</tr>
-<tr class="even">
-<td><code>"fa"</code></td>
-<td>Separate FA covariances; direct–competition covariance fixed at
-zero</td>
-<td>middle</td>
-</tr>
 </tbody>
 </table>
-<p><code>"facv"</code> is the model you want if it will fit: it is the
-only one that lets the direct–competition covariance differ between
-environments. <code>"separable"</code> is the usual fallback, costing
-<code>3 + E(r + 1)</code> parameters instead of
-<code>2E(r + 1)</code>.</p>
+<p><code>"facv"</code> is the model you want: it lets the
+direct–competition covariance differ between environments and estimates
+it rather than assuming it. If it will not fit, lower the
+factor-analytic rank; <code>"diag"</code> is the nested null model. The
+<code>"separable"</code> and <code>"fa"</code> structures of earlier
+versions were withdrawn in 3.9.0, and asking for them is now an error
+that names the replacement.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">met_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_met_model.html">fit_met_model</a></span><span class="op">(</span></span>
 <span>  <span class="va">met_nb</span><span class="op">$</span><span class="va">data</span>, <span class="va">met_nb</span><span class="op">$</span><span class="va">names</span>,</span>
@@ -293,6 +283,35 @@ the plots is refused: adjusting for something mostly absent biases the
 competitive effects more than it corrects them.</p>
 </div>
 <div class="section level2">
+<h2 id="global-field-trend-and-outlier-screening">Global field trend and outlier screening<a class="anchor" aria-label="anchor" href="#global-field-trend-and-outlier-screening"></a>
+</h2>
+<p>A smooth gradient along a field can be removed before the spatial
+process models what is left, with fixed linear covariates for row and
+column position (Gilmour, Cullis &amp; Verbyla 1997). In a MET each site
+is adjusted on its own:</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">trend_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_met_model.html">fit_met_model</a></span><span class="op">(</span></span>
+<span>  <span class="va">met_nb</span><span class="op">$</span><span class="va">data</span>, <span class="va">met_nb</span><span class="op">$</span><span class="va">names</span>,</span>
+<span>  opts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>structure <span class="op">=</span> <span class="st">"diag"</span>, spatial <span class="op">=</span> <span class="cn">TRUE</span>, nugget <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>              auto_simplify <span class="op">=</span> <span class="cn">TRUE</span>, exact_se <span class="op">=</span> <span class="cn">FALSE</span>, cinv_limit <span class="op">=</span> <span class="fl">0L</span>,</span>
+<span>              maxit <span class="op">=</span> <span class="fl">25L</span>, workspace <span class="op">=</span> <span class="st">"2gb"</span>, compare_baseline <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>              max_rounds <span class="op">=</span> <span class="fl">10L</span>,</span>
+<span>              field_trend <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>Env01 <span class="op">=</span> <span class="st">"both"</span>, Env03 <span class="op">=</span> <span class="st">"lrow"</span><span class="op">)</span>,</span>
+<span>              outliers <span class="op">=</span> <span class="st">"detect"</span>, outlier_threshold <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">trend_fit</span><span class="op">$</span><span class="va">field_trend_terms</span></span>
+<span><span class="va">trend_fit</span><span class="op">$</span><span class="va">wald</span></span>
+<span><span class="va">trend_fit</span><span class="op">$</span><span class="va">outliers</span><span class="op">$</span><span class="va">summary</span></span></code></pre></div>
+<p><code>field_trend</code> also accepts an unnamed
+<code>c("lrow", "lcol")</code> to adjust every site the same way.
+<code>outliers = "remove"</code> sets the response of every flagged plot
+to missing and refits once; <code>trend_fit$outliers$removed</code> then
+lists exactly what was withdrawn, and
+<code>asreml_script(trend_fit, ...)</code> writes a script that repeats
+the whole analysis, removal included.</p>
+</div>
+<div class="section level2">
 <h2 id="the-simplification-ladder">The simplification ladder<a class="anchor" aria-label="anchor" href="#the-simplification-ladder"></a>
 </h2>
 <p>Both fitting functions take <code>auto_simplify</code>. When
@@ -309,7 +328,7 @@ assumption first:</p>
 <li>the spatial residual — last, because dropping it biases everything
 else.</li>
 </ol>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">met_fit</span><span class="op">$</span><span class="va">log</span></span></code></pre></div>
 <p>Always read this log. A result from step 4 is a different scientific
 claim from a result at step 1, and the difference belongs in your
@@ -319,7 +338,7 @@ methods section.</p>
 <h2 id="reproducible-scripting">Reproducible scripting<a class="anchor" aria-label="anchor" href="#reproducible-scripting"></a>
 </h2>
 <p>Nothing above needs the Shiny interface. A complete analysis is:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/tolekeno/InterPlotComp" class="external-link">InterPlotComp</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">d</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prepare_trial_data.html">prepare_trial_data</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"trial.csv"</span><span class="op">)</span>, map <span class="op">=</span> <span class="va">my_map</span><span class="op">)</span></span>

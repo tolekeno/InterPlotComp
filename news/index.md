@@ -1,5 +1,67 @@
 # Changelog
 
+## InterPlotComp 3.9.0
+
+### New features
+
+- **Global field trend adjustment** (Gilmour, Cullis & Verbyla 1997).
+  Linear row and column covariates, `lrow` and `lcol`, can be fitted as
+  fixed effects to remove a smooth gradient before the spatial process
+  models what is left. In the MET workspace the adjustment is chosen
+  site by site - one site, several, or all - with `lrow`, `lcol` or both
+  at each, and every selected site gets its own slope,
+  `at(Env, <sites>):lrow`. The single-trial workspace offers plain
+  `lrow` and `lcol`. From a script, pass `field_trend` in `opts`, for
+  example `list(Env01 = "both", Env03 = "lrow")`. The terms appear in
+  the model description, the Wald table, the results workbook and the
+  ASReml script, and the no-competition baseline carries them too, so
+  the likelihood-ratio test is unaffected.
+
+- **Phenotypic outlier screening.** The selected model is fitted, each
+  observation’s standardised conditional residual is computed (ASReml
+  `stdCond`, from a fit continued with `aom = TRUE`), and observations
+  with \|residual\| \> 4 are flagged. *Detect and report only* lists
+  them; *Detect, remove, then refit* sets their response to missing and
+  refits once. A new *Diagnostics → Outliers* panel summarises outliers
+  by site and lists every flagged record with its site, genotype, field
+  position, observed and fitted values, residuals and the action taken.
+  The same tables go into the results workbook, and the removal is
+  recorded in the fitting log, the model description and the ASReml
+  script. From a script, pass `outliers = "detect"` or `"remove"` and
+  optionally `outlier_threshold`.
+
+- **ASReml-R script export.**
+  [`asreml_script()`](https://tolekeno.github.io/InterPlotComp/reference/asreml_script.md),
+  and a new card on the *Model detail* tab, write the fitted model as a
+  stand-alone script that rebuilds the data, adds the trend covariates,
+  removes the same outliers and calls `asreml()` with the formulae
+  actually fitted. Running it reproduces the application’s
+  log-likelihood.
+
+- The fixed-effects card (Wald tests and slopes) now appears whenever a
+  field trend or a covariate is fitted, and the fixed-effect estimates
+  are written to the results workbook.
+
+### Breaking changes
+
+- **The *Separable us(2) × FA* and *Separate fa() per effect* MET
+  structures have been removed** from the interface and from
+  [`fit_met_model()`](https://tolekeno.github.io/InterPlotComp/reference/fit_met_model.md).
+  Both bought convergence with an assumption the joint model does not
+  make, and their results were too easily read as fully estimated.
+  `structure = "separable"` or `"fa"` now stops with a message naming
+  the replacement: `"facv"` for the joint factor-analytic model or
+  `"diag"` for the diagonal. The MET simplification ladder no longer
+  steps through them either; it goes from reducing the factor-analytic
+  rank and dropping the nugget straight to the diagonal structure. The
+  `dc_covariance_fixed` result element, which existed only for the
+  separate-`fa()` structure, is gone.
+
+- When outlier screening is on, `Std_residual` in the residual table is
+  the standardised conditional residual used by the screen, rather than
+  the raw residual divided by one pooled standard deviation. With
+  screening off it is unchanged.
+
 ## InterPlotComp 3.8.1
 
 A patch release that fixes five bugs found by review. Nothing about the

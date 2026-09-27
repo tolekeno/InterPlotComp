@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,7 +65,12 @@
 
 
 <dt id="arg-opts">opts<a class="anchor" aria-label="anchor" href="#arg-opts"></a></dt>
-<dd><p>list of user options</p></dd>
+<dd><p>list of user options. Besides the model settings it takes
+<code>field_trend</code>, the linear field-trend covariates to fit as fixed effects
+(<code>"lrow"</code>, <code>"lcol"</code>, <code>c("lrow", "lcol")</code> or <code>"both"</code>; Gilmour, Cullis &amp;
+Verbyla 1997), and <code>outliers</code> (<code>"none"</code>, <code>"detect"</code> or <code>"remove"</code>) with
+<code>outlier_threshold</code> (default 4) for screening on standardised conditional
+residuals. See <code><a href="fit_met_model.html">fit_met_model()</a></code> for the details, which are shared.</p></dd>
 
 
 <dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>

@@ -37,6 +37,8 @@ is commercial software and is not supplied by this package.
   : Fit the single-trial competition model.
 - [`fit_met_model()`](https://tolekeno.github.io/InterPlotComp/reference/fit_met_model.md)
   : Fit the multi-environment competition model
+- [`asreml_script()`](https://tolekeno.github.io/InterPlotComp/reference/asreml_script.md)
+  : Write the fitted model as a stand-alone ASReml-R script
 
 ## Genetic relationships
 

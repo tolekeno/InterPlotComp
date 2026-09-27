@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,6 +42,21 @@
       <small>Source: <a href="https://github.com/tolekeno/InterPlotComp/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="3.9.0" id="interplotcomp-390">InterPlotComp 3.9.0<a class="anchor" aria-label="anchor" href="#interplotcomp-390"></a></h2>
+<div class="section level3">
+<h3 id="new-features-3-9-0">New features<a class="anchor" aria-label="anchor" href="#new-features-3-9-0"></a></h3>
+<ul><li><p><strong>Global field trend adjustment</strong> (Gilmour, Cullis &amp; Verbyla 1997). Linear row and column covariates, <code>lrow</code> and <code>lcol</code>, can be fitted as fixed effects to remove a smooth gradient before the spatial process models what is left. In the MET workspace the adjustment is chosen site by site - one site, several, or all - with <code>lrow</code>, <code>lcol</code> or both at each, and every selected site gets its own slope, <code>at(Env, &lt;sites&gt;):lrow</code>. The single-trial workspace offers plain <code>lrow</code> and <code>lcol</code>. From a script, pass <code>field_trend</code> in <code>opts</code>, for example <code>list(Env01 = "both", Env03 = "lrow")</code>. The terms appear in the model description, the Wald table, the results workbook and the ASReml script, and the no-competition baseline carries them too, so the likelihood-ratio test is unaffected.</p></li>
+<li><p><strong>Phenotypic outlier screening.</strong> The selected model is fitted, each observation’s standardised conditional residual is computed (ASReml <code>stdCond</code>, from a fit continued with <code>aom = TRUE</code>), and observations with |residual| &gt; 4 are flagged. <em>Detect and report only</em> lists them; <em>Detect, remove, then refit</em> sets their response to missing and refits once. A new <em>Diagnostics → Outliers</em> panel summarises outliers by site and lists every flagged record with its site, genotype, field position, observed and fitted values, residuals and the action taken. The same tables go into the results workbook, and the removal is recorded in the fitting log, the model description and the ASReml script. From a script, pass <code>outliers = "detect"</code> or <code>"remove"</code> and optionally <code>outlier_threshold</code>.</p></li>
+<li><p><strong>ASReml-R script export.</strong> <code><a href="../reference/asreml_script.html">asreml_script()</a></code>, and a new card on the <em>Model detail</em> tab, write the fitted model as a stand-alone script that rebuilds the data, adds the trend covariates, removes the same outliers and calls <code>asreml()</code> with the formulae actually fitted. Running it reproduces the application’s log-likelihood.</p></li>
+<li><p>The fixed-effects card (Wald tests and slopes) now appears whenever a field trend or a covariate is fitted, and the fixed-effect estimates are written to the results workbook.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-3-9-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-3-9-0"></a></h3>
+<ul><li><p><strong>The <em>Separable us(2) × FA</em> and <em>Separate fa() per effect</em> MET structures have been removed</strong> from the interface and from <code><a href="../reference/fit_met_model.html">fit_met_model()</a></code>. Both bought convergence with an assumption the joint model does not make, and their results were too easily read as fully estimated. <code>structure = "separable"</code> or <code>"fa"</code> now stops with a message naming the replacement: <code>"facv"</code> for the joint factor-analytic model or <code>"diag"</code> for the diagonal. The MET simplification ladder no longer steps through them either; it goes from reducing the factor-analytic rank and dropping the nugget straight to the diagonal structure. The <code>dc_covariance_fixed</code> result element, which existed only for the separate-<code>fa()</code> structure, is gone.</p></li>
+<li><p>When outlier screening is on, <code>Std_residual</code> in the residual table is the standardised conditional residual used by the screen, rather than the raw residual divided by one pooled standard deviation. With screening off it is unchanged.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="3.8.1" id="interplotcomp-381">InterPlotComp 3.8.1<a class="anchor" aria-label="anchor" href="#interplotcomp-381"></a></h2>
 <p>A patch release that fixes five bugs found by review. Nothing about the model has changed.</p>

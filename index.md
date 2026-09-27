@@ -128,6 +128,24 @@ fit$variance           # interpreted variance components
 fit$comparison$lrt     # does competition matter?
 ```
 
+A MET with a per-site field trend and outlier removal:
+
+``` r
+
+met <- fit_met_model(
+  nb$data, nb$names,
+  opts = list(structure = "facv", rank = 1, spatial = TRUE, nugget = FALSE,
+              auto_simplify = TRUE, exact_se = TRUE, compare_baseline = TRUE,
+              maxit = 80, workspace = "4gb", cinv_limit = 8000,
+              field_trend = list(`Site A` = "both", `Site C` = "lrow"),
+              outliers = "remove", outlier_threshold = 4)
+)
+
+met$outliers$summary   # outliers per site
+met$outliers$removed   # the records withdrawn before the refit
+asreml_script(met, "my_met.csv", map, "rows", file = "my_met_asreml.R")
+```
+
 Use
 [`fit_met_model()`](https://tolekeno.github.io/InterPlotComp/reference/fit_met_model.md)
 for a series of environments, and
@@ -213,6 +231,70 @@ earns its extra parameter; a rise means AR1 was adequate. If a
 second-order process cannot be estimated, the simplification ladder
 falls back to AR1 × AR1 before giving up anything else, and reports it.
 
+### Global field trend
+
+A separable AR1 × AR1 process models local, stationary variation. A
+smooth gradient running the length of a field is not stationary; left to
+the spatial process it inflates the autocorrelation and can leak into
+the competitive effects. Following Gilmour, Cullis & Verbyla (1997), the
+gradient can be removed first with linear covariates for row and column
+position, fitted as fixed effects:
+
+``` r
+
+fixed = Yield ~ 1 + lrow + lcol                                  # single trial
+fixed = Yield ~ Env + at(Env, c("Site A", "Site C")):lrow + at(Env):lcol  # MET
+```
+
+`lrow` and `lcol` are the grid positions centred on the middle of each
+site’s field, so the intercept and the environment means still refer to
+the centre of the trial. In a MET the adjustment is chosen **site by
+site** — one site, several, or all — with `lrow`, `lcol` or both at
+each, and every selected site gets its own slope. `at(Env):lcol` (no
+level list) means every site. A common slope across sites is
+deliberately not offered: fields do not share a gradient. The
+no-competition baseline carries the same terms, so the likelihood-ratio
+test is unaffected. Read the Wald test on the *Variance & heritability*
+tab afterwards and drop a slope that is not significant.
+
+### Phenotypic outlier screening
+
+With screening on, the selected model is fitted and every observation’s
+**standardised conditional residual** — its residual divided by its own
+standard error, from ASReml’s `residuals(type = "stdCond")` on a fit
+continued with `aom = TRUE` — is computed. Observations with
+\|residual\| \> 4 (the threshold is adjustable) are flagged.
+
+| Option | What happens |
+|----|----|
+| **Off** | No screening (default). |
+| **Detect and report only** | Flagged observations are listed; the fit is unchanged. |
+| **Detect, remove, then refit** | Flagged observations have their response set to missing and the model is fitted again, once. |
+
+A removed plot stays in the field: its genotype still competes with its
+neighbours and its grid position is still needed by the spatial process,
+so only its own measurement is withdrawn. One pass is made; anything
+that exceeds the threshold only after the refit is listed but not
+removed, because removing points until none remain cuts into the genuine
+tails of the distribution.
+
+*Diagnostics → Outliers* gives the number detected per site and every
+flagged record with its site, genotype, field row and column, observed
+and fitted value, residual and standardised residual, and the action
+taken. The same tables go into the results workbook, the removal is
+recorded in the fitting log and the model description, and the ASReml-R
+script reproduces it.
+
+### ASReml-R script
+
+*Model detail → ASReml-R script* (and the *Export* tab) writes the
+fitted model as a stand-alone R script: it rebuilds the analysis data
+with the package’s own functions, adds the field-trend covariates,
+removes the same outliers, and calls `asreml()` with the formulae that
+were actually fitted — the model the simplification ladder settled on,
+not merely the one requested. From a script,
+`asreml_script(fit, data_file, map, axis)` does the same.
+
 Border plots legitimately have fewer neighbours. Their absent neighbour
 factors stay `NA` and are absorbed by `na.method(x = "include")` as a
 zero row in the design matrix — they contribute no competitive effect
@@ -235,33 +317,24 @@ are used rather than a pre-combined factor, because a pre-combined
 factor drops the unobserved cells of a sparse genotype × environment
 table and then no longer conforms with its variance structure.
 
-Three structures are offered:
+Two structures are offered:
 
 | Structure | Parameters | Assumption |
 |----|----|----|
-| **Joint factor-analytic** | 2E(r+1) | Direct and competitive effects may have different G×E patterns. Most general. |
-| **Separable us(2) × FA** | 3 + E(r+1) | One shared environment correlation pattern. Fits where the joint model is singular. |
-| **Separate fa() per effect** | 2E(r+1) | An ordinary `fa()` term for each effect. The direct–competition covariance becomes a structural zero. |
+| **Joint factor-analytic** | 2E(r+1) | Direct and competitive effects may have different G×E patterns, and the direct–competition covariance is estimated in every environment. Most general. |
 | **Diagonal** | 2E | No between-environment correlation. The null model for G×E. |
 
-> **`fa()` versus `facv()`.** They fit the same covariance, ΛΛ′ + Ψ;
-> `fa()` additionally materialises the latent factor scores. But `fa()`
-> cannot go inside the joint [`str()`](https://rdrr.io/r/utils/str.html)
-> block: it augments the term with its own latent-factor levels, so
-> ASReml reports
-> `Size of direct product (468) does not conform with total size of included terms (416)`
-> — the gap being rank × nGeno. Fitting `fa()` therefore requires giving
-> up the joint structure, which is what the *Separate fa() per effect*
-> option does.
->
-> That has a real cost. On the worked example the joint model fits 10.2
-> log-likelihood units better **for the same 30 parameters**, and the
-> direct–competition correlations it estimates are −0.96, −0.18, −0.47
-> and −0.88. Forcing them to zero inflates the pure-stand variance by
-> 1.3× to 8.7× depending on the environment, because the `2k·Cov(D, C)`
-> term is dropped. The joint structure remains the default for that
-> reason; the application states the limitation whenever the
-> separate-`fa()` structure is in use.
+> **Withdrawn in 3.9.0.** The *Separable us(2) × FA* and *Separate fa()
+> per effect* structures are no longer offered. Each bought convergence
+> with an assumption the joint model does not make — one environment
+> correlation pattern shared by the direct and competitive effects, or a
+> direct–competition covariance fixed at zero, which on the worked
+> example inflated the pure-stand variance by 1.3× to 8.7× — and results
+> fitted under them were too easily read as fully estimated. A script
+> that still asks for `structure = "separable"` or `"fa"` now stops with
+> a message naming the replacement. When the joint model is singular,
+> lower the factor-analytic rank; the simplification ladder does this
+> automatically before falling back to the diagonal structure.
 
 Pure-stand covariance across environments:
 
@@ -530,8 +603,8 @@ Single trial: `us(2)` → `corgh(2)` → drop nugget → drop the
 direct–competition covariance → reduce design terms → drop the spatial
 residual.
 
-MET: reduce FA rank → drop nugget → separable covariance → diagonal
-covariance → reduce design terms → independent residuals.
+MET: reduce FA rank → drop nugget → diagonal covariance → reduce design
+terms → independent residuals.
 
 Only recoverable numerical failures advance the ladder; a genuine data
 or syntax error aborts immediately with its own message.

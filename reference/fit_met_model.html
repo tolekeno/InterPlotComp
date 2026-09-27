@@ -11,7 +11,7 @@ environment. Requires 'ASReml-R' and a valid licence."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -73,10 +73,21 @@ carrying the neighbour factors added by <code><a href="add_neighbours.html">add_
 
 
 <dt id="arg-opts">opts<a class="anchor" aria-label="anchor" href="#arg-opts"></a></dt>
-<dd><p>Named list of fitting options: <code>structure</code> (one of
-<code>MET_STRUCTURES</code>), <code>rank</code>, <code>spatial</code>, <code>nugget</code>, <code>auto_simplify</code>,
-<code>exact_se</code>, <code>compare_baseline</code>, <code>maxit</code>, <code>workspace</code>, <code>cinv_limit</code> and an
-optional <code>relationship</code> from <code><a href="build_relationship.html">build_relationship()</a></code>.</p></dd>
+<dd><p>Named list of fitting options: <code>structure</code> (<code>"facv"</code> or
+<code>"diag"</code>; the <code>"separable"</code> and <code>"fa"</code> structures were removed in 3.9.0),
+<code>rank</code>, <code>spatial</code>, <code>nugget</code>, <code>auto_simplify</code>, <code>exact_se</code>,
+<code>compare_baseline</code>, <code>maxit</code>, <code>workspace</code>, <code>cinv_limit</code>, an optional
+<code>relationship</code> from <code><a href="build_relationship.html">build_relationship()</a></code>, and:</p><ul><li><p><code>field_trend</code> - global field-trend adjustment (Gilmour, Cullis &amp;
+Verbyla 1997). A named list with one entry per site to adjust, each
+<code>"lrow"</code>, <code>"lcol"</code> or <code>"both"</code>, for example
+<code>list(Env01 = "both", Env03 = "lrow")</code>; or an unnamed <code>c("lrow", "lcol")</code> to adjust every site the same way. Each selected site gets
+its own fixed linear slope, <code>at(Env, &lt;site&gt;):lrow</code>.</p></li>
+<li><p><code>outliers</code> - <code>"none"</code> (default), <code>"detect"</code> to flag observations whose
+standardised conditional residual exceeds <code>outlier_threshold</code>, or
+<code>"remove"</code> to flag them, set their response to missing and refit.</p></li>
+<li><p><code>outlier_threshold</code> - the absolute standardised residual beyond which
+an observation is an outlier; default 4.</p></li>
+</ul></dd>
 
 
 <dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>
@@ -88,7 +99,10 @@ simplification ladder advances.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list holding the fitted model, the genetic values by environment,
 the direct, competitive and pure-stand covariance and correlation
-matrices, variance summaries, the fitting log and residuals.</p>
+matrices, variance summaries, the fitting log and residuals. When outlier
+screening is on, <code>outliers</code> holds the flagged and removed observations
+and a per-site summary; <code>field_trend</code> holds the trend specification; and
+<code>model_code</code> feeds <code><a href="asreml_script.html">asreml_script()</a></code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
