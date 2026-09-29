@@ -1,6 +1,10 @@
-# InterPlotComp 3.9.0
+# InterPlotComp 3.10.0
 
-## New features
+Every model now fits random row and column effects, and a MET fits separate
+replicate and block variances at each site, so fitted variances and genotype
+predictions differ from 3.9.0 for the same data and options.
+
+## Changes to the model
 
 * **Row and column random effects.** Rows and columns are part of the
   physical layout of every trial, so `Row` and `Column` are now fitted as
@@ -12,6 +16,21 @@
   same random effect under another name, so it is fitted once, as the row or
   column term, and the fitting log says so. The fallback ladder gives up the
   replicate and block variances before the row and column variances.
+
+* **Site-specific replicate and block variances in a MET.** The replicate and
+  block terms are now `at(Env):Rep` and `at(Env):Block`, so each site has its
+  own replicate and block variance, in place of one of each pooled over sites.
+  Where block labels restart in every replicate the block term is
+  `at(Env):Rep:Block`, so that block 1 of one replicate is not merged with
+  block 1 of the next; the fitting log says when this applies. A site with a
+  single replicate or block is left out of that term, and so is a site whose
+  replicates or blocks are whole rows or columns - there the row or column
+  term is the same effect. Single-trial models are
+  unchanged.
+
+# InterPlotComp 3.9.0
+
+## New features
 
 * **Global field trend adjustment** (Gilmour, Cullis & Verbyla 1997). Linear
   row and column covariates, `lrow` and `lcol`, can be fitted as fixed effects

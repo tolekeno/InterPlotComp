@@ -177,6 +177,9 @@ pretty_term <- function(x) {
   map <- c(
     RepF = "replicate", BlockF = "block", EnvRep = "replicate",
     Row = "field row", Column = "field column",
+    `at(Env):Rep` = "replicate within environment",
+    `at(Env):Block` = "block within environment",
+    `at(Env):Rep:Block` = "block within replicate and environment",
     `at(Env):Row` = "field row within environment",
     `at(Env):Column` = "field column within environment",
     Geno = "genotype (direct)", N1 = "neighbour genotype (competitive)",
@@ -187,14 +190,16 @@ pretty_term <- function(x) {
   )
   out <- unname(map[x])
   out <- ifelse(is.na(out), x, out)
-  # A row or column term fitted at only some sites, written
+  # A replicate, block, row or column term fitted at only some sites, written
   # at(Env, c("A", "B")):Row in the formula and at(Env, 'A'):Row by ASReml.
-  site_axis <- "^at\\(Env, *(.+)\\):(Row|Column)$"
-  hit <- grepl(site_axis, out)
+  site_term <- "^at\\(Env, *(.+)\\):(Rep|Block|Rep:Block|Row|Column)$"
+  hit <- grepl(site_term, out)
   if (any(hit)) {
-    sites <- gsub("^c\\(|\\)$|[\"']", "", sub(site_axis, "\\1", out[hit]))
-    axis <- tolower(sub(site_axis, "\\2", out[hit]))
-    out[hit] <- sprintf("field %s (%s)", axis, sites)
+    sites <- gsub("^c\\(|\\)$|[\"']", "", sub(site_term, "\\1", out[hit]))
+    what <- c(Rep = "replicate", Block = "block",
+              `Rep:Block` = "block within replicate", Row = "field row",
+              Column = "field column")[sub(site_term, "\\2", out[hit])]
+    out[hit] <- sprintf("%s (%s)", what, sites)
   }
   out
 }

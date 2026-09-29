@@ -209,11 +209,14 @@ build_design_factors <- function(d, multi_env = FALSE) {
   parts <- if (multi_env) list(d$Env) else list()
 
   if (has_rep) {
+    # A factor, so that a MET can fit it within each site as at(Env):Rep.
+    d$Rep <- factor(d$Rep, levels = ordered_unique(stats::na.omit(d$Rep)))
     d$RepF <- droplevels(interaction(c(parts, list(d$Rep)), drop = TRUE, sep = ":"))
     d$RepF[is.na(d$Rep)] <- NA
     d$RepF <- droplevels(d$RepF)
   }
   if (has_block) {
+    d$Block <- factor(d$Block, levels = ordered_unique(stats::na.omit(d$Block)))
     block_parts <- c(parts, if (has_rep) list(d$Rep) else NULL, list(d$Block))
     d$BlockF <- droplevels(interaction(block_parts, drop = TRUE, sep = ":"))
     d$BlockF[is.na(d$Block)] <- NA
@@ -232,6 +235,30 @@ build_design_factors <- function(d, multi_env = FALSE) {
 #' @noRd
 available_design_terms <- function(d) intersect(c("RepF", "BlockF"), names(d))
 
+#' A design term fitted within each site that can support it.
+#'
+#' A MET writes the term as `at(Env):f`, or `at(Env, <sites>):f` when some
+#' sites have a single level of `f` and so nothing to estimate; a single trial
+#' writes plain `f`. The `sites` attribute records the sites the term covers.
+#' @param key the values whose distinct count decides whether a site is covered
+#' @return the term, or NULL when no site has two or more levels
+#' @noRd
+site_specific_term <- function(d, f, key, multi_env = FALSE) {
+  env <- droplevels(d$Env)
+  n <- tapply(key, env, function(x) length(unique(stats::na.omit(x))))
+  sites <- names(n)[!is.na(n) & n >= 2L]
+  if (!length(sites)) return(NULL)
+  term <- if (!multi_env) f else at_env_term(f, sites, levels(env))
+  structure(term, sites = sites)
+}
+
+#' `at(Env):f` when a term covers every site, else `at(Env, <sites>):f`.
+#' @noRd
+at_env_term <- function(f, sites, all_sites) {
+  if (setequal(sites, all_sites)) sprintf("at(Env):%s", f)
+  else sprintf("at(Env, %s):%s", level_vector_text(sites), f)
+}
+
 #' Random row and column terms for the field layout.
 #'
 #' Rows and columns are part of the physical structure of every trial, so
@@ -244,22 +271,13 @@ available_design_terms <- function(d) intersect(c("RepF", "BlockF"), names(d))
 #' left out of it. The `sites` attribute gives the sites each term covers.
 #' @noRd
 row_column_terms <- function(d, multi_env = FALSE) {
-  env <- droplevels(d$Env)
   out <- character(0)
   covered <- list()
   for (f in names(FIELD_AXES)) {
-    n <- tapply(d[[FIELD_AXES[[f]]]], env, function(x) length(unique(x)))
-    sites <- names(n)[!is.na(n) & n >= 2L]
-    if (!length(sites)) next
-    term <- if (!multi_env) {
-      f
-    } else if (setequal(sites, levels(env))) {
-      sprintf("at(Env):%s", f)
-    } else {
-      sprintf("at(Env, %s):%s", level_vector_text(sites), f)
-    }
-    out <- c(out, term)
-    covered[[term]] <- sites
+    term <- site_specific_term(d, f, d[[FIELD_AXES[[f]]]], multi_env)
+    if (is.null(term)) next
+    out <- c(out, as.character(term))
+    covered[[term]] <- attr(term, "sites")
   }
   attr(out, "sites") <- covered
   out
@@ -273,40 +291,121 @@ is_row_column_term <- function(x) grepl("(^|:)(Row|Column)$", x)
 
 #' Random design terms for a fit: replicate, block, row and column.
 #'
+#' A MET fits the replicate and block within each site, `at(Env):Rep` and
+#' `at(Env):Block`, so every site has its own replicate and block variance; a
+#' single trial fits `RepF` and `BlockF`. Block labels are often re-used in
+#' every replicate, and `at(Env):Block` would then merge block 1 of replicate 1
+#' with block 1 of replicate 2, so at such a site the block term is written
+#' `at(Env):Rep:Block` instead.
+#'
 #' A replicate or block factor that groups the plots exactly as the rows or
 #' columns do - blocks laid out as whole columns, say - is the same random
 #' effect under another name. Fitting both makes the Average Information
 #' matrix singular, so the row or column term is kept, as the structural one,
-#' and the duplicate is dropped with a note for the fitting log.
+#' and the duplicate is dropped with a note for the fitting log. In a MET the
+#' check runs site by site: a site where blocks are whole columns is left out
+#' of the block term, and the other sites keep their block variances.
 #' @return character vector of terms with a `notes` attribute
 #' @noRd
 model_design_terms <- function(d, multi_env = FALSE) {
   blocking <- available_design_terms(d)
   layout <- row_column_terms(d, multi_env)
   sites <- attr(layout, "sites")
-  observed <- !d$Padded %in% TRUE
+  # The grouping of the plots behind every site-specific term, for the
+  # duplicate check below.
+  keys <- list()
+  stems <- list()
+  for (l in layout) keys[[l]] <- d[[FIELD_AXES[[sub("^.*:", "", l)]]]]
   notes <- character(0)
 
-  for (b in blocking) {
-    for (l in layout) {
-      axis <- sub("^.*:", "", l)
-      in_term <- observed & as.character(d$Env) %in% sites[[l]]
-      in_block <- observed & !is.na(d[[b]])
-      if (!identical(in_term, in_block)) next
-      a <- as.character(d[[b]])[in_block]
-      z <- paste(d$Env, d[[FIELD_AXES[[axis]]]])[in_block]
-      same <- length(unique(a)) == length(unique(z)) &&
-        length(unique(paste(a, z))) == length(unique(a))
-      if (same) {
-        blocking <- setdiff(blocking, b)
-        notes <- c(notes, sprintf(
-          "The %s factor groups the plots exactly as the field %ss do, so it is fitted once, as the %s term.",
-          pretty_term(b), tolower(axis), tolower(axis)))
-        break
+  if (multi_env) {
+    site_version <- function(term, f, key) {
+      t <- site_specific_term(d, f, key, multi_env = TRUE)
+      if (is.null(t)) return(setdiff(blocking, term))
+      sites[[t]] <<- attr(t, "sites")
+      keys[[t]] <<- key
+      stems[[t]] <<- f
+      replace(blocking, blocking == term, as.character(t))
+    }
+    if ("RepF" %in% blocking) blocking <- site_version("RepF", "Rep", d$Rep)
+    if ("BlockF" %in% blocking) {
+      labelled <- !is.na(d$Block) & !is.na(d$Rep %||% NA)
+      reused <- "Rep" %in% names(d) && any(tapply(
+        d$Rep[labelled], paste(d$Env, d$Block)[labelled],
+        function(r) length(unique(r)) > 1L))
+      if (reused) {
+        notes <- c(notes, paste(
+          "Block labels are re-used across replicates, so blocks are fitted",
+          "within replicate and site, at(Env):Rep:Block."))
       }
+      blocking <- site_version("BlockF", if (reused) "Rep:Block" else "Block",
+                               d$BlockF)
     }
   }
-  out <- c(blocking, as.character(layout))
+
+  # The plots a term covers, and the group each of them falls in.
+  observed <- !d$Padded %in% TRUE
+  grouping <- function(term) {
+    if (is.null(sites[[term]])) {
+      return(list(covers = observed & !is.na(d[[term]]),
+                  group = as.character(d[[term]])))
+    }
+    x <- keys[[term]]
+    list(covers = observed & !is.na(x) & as.character(d$Env) %in% sites[[term]],
+         group = paste(d$Env, x))
+  }
+
+  # Do two terms group the same plots identically, among the plots `within`?
+  same_grouping <- function(b, l, within = TRUE) {
+    gb <- grouping(b)
+    gl <- grouping(l)
+    cb <- gb$covers & within
+    cl <- gl$covers & within
+    if (!any(cb) || !identical(cb, cl)) return(FALSE)
+    a <- gb$group[cb]
+    z <- gl$group[cl]
+    length(unique(a)) == length(unique(z)) &&
+      length(unique(paste(a, z))) == length(unique(a))
+  }
+  what <- function(b) sub(" within .*$| \\(.*\\)$", "", pretty_term(b))
+  axis_of <- function(l) tolower(sub("^.*:", "", l))
+
+  kept <- character(0)
+  for (b in blocking) {
+    if (is.null(stems[[b]])) {
+      # A single trial: a duplicate is dropped whole.
+      dup <- Find(function(l) same_grouping(b, l), layout)
+      if (is.null(dup)) {
+        kept <- c(kept, b)
+      } else {
+        notes <- c(notes, sprintf(
+          "The %s factor groups the plots exactly as the field %ss do, so it is fitted once, as the %s term.",
+          what(b), axis_of(dup), axis_of(dup)))
+      }
+      next
+    }
+    # A MET: blocks may be whole columns at one site and cut across them at
+    # the next, so the check runs site by site, and a site where the factor
+    # duplicates a row or column term is left out of this term only.
+    keep <- sites[[b]]
+    for (s in sites[[b]]) {
+      at_site <- as.character(d$Env) == s
+      dup <- Find(function(l) s %in% sites[[l]] && same_grouping(b, l, at_site),
+                  layout)
+      if (!is.null(dup)) {
+        keep <- setdiff(keep, s)
+        notes <- c(notes, sprintf(
+          "At %s the %s factor groups the plots exactly as the field %ss do, so it is fitted there once, as the %s term.",
+          s, what(b), axis_of(dup), axis_of(dup)))
+      }
+    }
+    if (length(keep)) {
+      kept <- c(kept, if (identical(keep, sites[[b]])) b else
+        at_env_term(stems[[b]], keep, levels(droplevels(d$Env))))
+    }
+  }
+  out <- c(kept, layout)
+  attributes(out) <- NULL
   attr(out, "notes") <- notes
   out
 }

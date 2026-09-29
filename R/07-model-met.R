@@ -6,7 +6,7 @@
 # Direct and competitive effects are environment-specific, and the 2E of them
 # share one joint covariance matrix:
 #
-#   random = ~ at(Env):Row + at(Env):Column +
+#   random = ~ at(Env):Rep + at(Env):Block + at(Env):Row + at(Env):Column +
 #            str(~ Env:Geno + Env:N1 + and(Env:N2),
 #                ~ facv(EffectEnv, r):id(nGeno))
 #   residual = ~ dsum(~ ar1(Column):ar1(Row) | Env)

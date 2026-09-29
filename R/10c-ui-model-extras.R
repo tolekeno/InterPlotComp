@@ -20,7 +20,7 @@ outlier_controls <- function(ns) {
     ),
     note("The selected model is fitted and every observation's standardised ",
          "conditional residual is computed; those beyond the threshold (4 by ",
-         "default) are listed under ", shiny::em("Diagnostics › Outliers"), ". ",
+         "default) are listed under ", shiny::em("Diagnostics \u203a Outliers"), ". ",
          shiny::strong("Detect, remove, then refit"),
          " sets their response to missing - the plot stays in the field, so ",
          "it still competes with its neighbours - and fits the model again. ",

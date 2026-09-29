@@ -131,6 +131,12 @@ test_that("row and column terms get breeder-facing names", {
   expect_equal(interpret_component("at(Env, 'Env01'):Column"),
                "Field column (Env01) variance")
   expect_equal(interpret_component("Row"), "Field row variance")
+  expect_equal(pretty_term("at(Env):Rep"), "replicate within environment")
+  expect_equal(pretty_term(c("at(Env):Block", "at(Env):Rep:Block")),
+               c("block within environment", "block within replicate and environment"))
+  expect_equal(interpret_component("at(Env, 'Env03'):Block"), "Block (Env03) variance")
+  expect_equal(interpret_component("at(Env, 'Env02'):Rep"),
+               "Replicate (Env02) variance")
 })
 
 test_that("the ladder collapses to a single step when fallback is off", {

@@ -364,7 +364,7 @@ guide_ui <- function(id) {
                    "plot itself stays in the field, because its genotype still ",
                    "competes with the neighbours."),
           shiny::p("Every flagged and removed record is listed under ",
-                   shiny::em("Diagnostics › Outliers"), ", written to the ",
+                   shiny::em("Diagnostics \u203a Outliers"), ", written to the ",
                    "results workbook, and reproduced in the ASReml-R script, so ",
                    "the analysis can be repeated exactly. Check a flagged plot ",
                    "against the field book before removing it.")

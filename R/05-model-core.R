@@ -515,8 +515,8 @@ n_model_coefficients <- function(d, terms, n_geno, k_blocks = 2L) {
   # A site-specific term such as at(Env):Row has one effect per level for
   # every site it covers.
   n_levels <- function(x) {
-    factor_name <- sub("^.*:", "", x)
-    n <- nlevels(d[[factor_name]])
+    factors <- strsplit(sub("^at\\(Env.*\\):", "", x), ":", fixed = TRUE)[[1]]
+    n <- prod(vapply(factors, function(f) nlevels(d[[f]]), integer(1)))
     if (startsWith(x, "at(Env)")) n * nlevels(d$Env)
     else if (startsWith(x, "at(Env,")) n * (length(gregexpr("\"", x)[[1]]) %/% 2L)
     else n

@@ -210,11 +210,31 @@ test_that("a block factor that duplicates the columns is fitted once, as Column"
   expect_equal(as.character(terms), c("RepF", "Row", "Column"))
   expect_match(attr(terms, "notes"), "block factor groups the plots exactly as the field columns")
 
-  # Incomplete blocks that cut across rows and columns are kept.
+  # In the sample MET the blocks cut across the grid at Env01 and Env02 but
+  # are whole columns at Env03 and Env04, so the check runs site by site.
   m <- complete_field_grid(prepare_trial_data(sample_met_trial(), met_map(),
                                               multi_env = TRUE))
-  expect_equal(as.character(model_design_terms(m, multi_env = TRUE)),
-               c("RepF", "BlockF", "at(Env):Row", "at(Env):Column"))
+  mt <- model_design_terms(m, multi_env = TRUE)
+  expect_equal(as.character(mt),
+               c("at(Env):Rep", 'at(Env, c("Env01", "Env02")):Block',
+                 "at(Env):Row", "at(Env):Column"))
+  expect_length(grep("^At Env0[34] the block factor", attr(mt, "notes")), 2L)
+  expect_true(is.factor(m$Rep))
+
+  # A site with a single replicate has no replicate variance to estimate.
+  one_rep <- m
+  one_rep$Rep[one_rep$Env == levels(m$Env)[2]] <- levels(m$Rep)[1]
+  expect_equal(as.character(model_design_terms(one_rep, multi_env = TRUE))[1],
+               sprintf("at(Env, %s):Rep", level_vector_text(levels(m$Env)[-2])))
+
+  # Block labels that restart in every replicate stay nested in replicate.
+  raw <- sample_met_trial()
+  raw$Block <- stats::ave(raw$Block, raw$Environment, raw$Rep,
+                          FUN = function(x) match(x, sort(unique(x))))
+  r <- complete_field_grid(prepare_trial_data(raw, met_map(), multi_env = TRUE))
+  terms <- model_design_terms(r, multi_env = TRUE)
+  expect_match(as.character(terms)[2], "^at\\(Env.*\\):Rep:Block$")
+  expect_true(any(grepl("re-used across replicates", attr(terms, "notes"))))
 })
 
 test_that("field_summary reports one row per environment with honest counts", {

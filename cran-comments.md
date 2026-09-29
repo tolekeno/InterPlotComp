@@ -2,8 +2,10 @@
 
 ## Submission
 
-This is a new submission of InterPlotComp 3.8.1. Version 3.8.0 was never
-submitted; 3.8.1 adds only bug fixes on top of it (see NEWS.md).
+This is a new submission of InterPlotComp 3.10.0. No earlier version has been
+submitted: 3.8.0, 3.8.1 and 3.9.0 were development releases only, and NEWS.md
+records each of them. 3.10.0 adds random row and column effects to every
+model.
 
 ## Test environments
 
