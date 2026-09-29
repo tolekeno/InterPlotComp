@@ -17,7 +17,7 @@ Description: Fits direct-competition mixed models to unbordered single-row-plot
     Methods follow Stringer, Cullis and Thompson (2011, Journal of
     Agricultural, Biological, and Environmental Statistics 16:269-281) and
     Hunt, Smith, Jordan and Cullis (2013) <doi:10.1007/s13253-012-0117-7>.
-License: MIT + file LICENSE
+License: GPL (>= 3)
 Encoding: UTF-8
 Depends:
     R (>= 4.1)

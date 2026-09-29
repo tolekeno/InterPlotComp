@@ -149,5 +149,5 @@ to abide by its terms.
 
 ## Licence
 
-Contributions are accepted under the [MIT Licence](LICENSE.md) that covers the
-project.
+Contributions are accepted under the [GNU General Public License, version 3
+or later](LICENSE.md), which covers the project.
