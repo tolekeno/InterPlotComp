@@ -314,7 +314,7 @@ rather than being dropped.
 ``` r
 
 fixed    = Yield ~ Env
-random   = ~ Rep + Block + at(Env):Row + at(Env):Column +
+random   = ~ at(Env):Rep + at(Env):Block + at(Env):Row + at(Env):Column +
              str(~ Env:Geno + Env:N1 + and(Env:N2),
                  ~ facv(EffectEnv, r):id(nGeno))
 residual = ~ dsum(~ ar1(Column):ar1(Row) | Env)
@@ -322,12 +322,17 @@ residual = ~ dsum(~ ar1(Column):ar1(Row) | Env)
 
 The 2·E direct and competitive environment effects share one joint
 covariance matrix. `dsum()` gives each environment its own spatial
-section, so trials may differ in size, and `at(Env):Row` /
-`at(Env):Column` give each site its own row and column variance. True
-`Env:Geno` interaction terms are used rather than a pre-combined factor,
-because a pre-combined factor drops the unobserved cells of a sparse
-genotype × environment table and then no longer conforms with its
-variance structure.
+section, so trials may differ in size, and `at(Env):Rep`,
+`at(Env):Block`, `at(Env):Row` and `at(Env):Column` give each site its
+own replicate, block, row and column variance. Where block labels
+restart in every replicate, the block term is written
+`at(Env):Rep:Block` so that block 1 of one replicate is not merged with
+block 1 of the next. A site whose blocks are whole rows or columns is
+left out of the block term, since there the row or column term is the
+same effect. True `Env:Geno` interaction terms are used rather than a
+pre-combined factor, because a pre-combined factor drops the unobserved
+cells of a sparse genotype × environment table and then no longer
+conforms with its variance structure.
 
 Two structures are offered:
 
