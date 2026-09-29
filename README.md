@@ -4,7 +4,7 @@
 [![R-CMD-check](https://github.com/tolekeno/InterPlotComp/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tolekeno/InterPlotComp/actions/workflows/R-CMD-check.yaml)
 [![pkgdown](https://github.com/tolekeno/InterPlotComp/actions/workflows/pkgdown.yaml/badge.svg)](https://tolekeno.github.io/InterPlotComp/)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
-[![License: GPL (>= 3)](https://img.shields.io/badge/license-GPL%20%28%3E%3D%203%29-blue.svg)](LICENSE.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 <!-- badges: end -->
 
 **Inter-plot competition analysis for plant breeding trials.**
