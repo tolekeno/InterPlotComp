@@ -193,9 +193,18 @@ In ASReml-R:
 
 ``` r
 
-random   = ~ Rep + Block + str(~ Geno + N1 + and(N2), ~ us(2):id(nGeno))
+random   = ~ Rep + Block + Row + Column +
+             str(~ Geno + N1 + and(N2), ~ us(2):id(nGeno))
 residual = ~ ar1(Column):ar1(Row)
 ```
+
+Rows and columns are part of the physical layout of every trial, so
+`Row` and `Column` are always fitted as random effects alongside the
+spatial residual (Gilmour, Cullis & Verbyla 1997). The AR1 × AR1 process
+models smooth local trend; the row and column variances absorb whole-row
+and whole-column effects such as sowing or harvesting direction. If the
+model will not converge, the fallback ladder gives up the replicate and
+block variances before these.
 
 `and()` adds `N2`’s design matrix onto `N1`’s rather than creating new
 effects, so both neighbours of a plot draw on one competitive effect
@@ -305,17 +314,20 @@ rather than being dropped.
 ``` r
 
 fixed    = Yield ~ Env
-random   = ~ Rep + Block + str(~ Env:Geno + Env:N1 + and(Env:N2),
-                               ~ facv(EffectEnv, r):id(nGeno))
+random   = ~ Rep + Block + at(Env):Row + at(Env):Column +
+             str(~ Env:Geno + Env:N1 + and(Env:N2),
+                 ~ facv(EffectEnv, r):id(nGeno))
 residual = ~ dsum(~ ar1(Column):ar1(Row) | Env)
 ```
 
 The 2·E direct and competitive environment effects share one joint
 covariance matrix. `dsum()` gives each environment its own spatial
-section, so trials may differ in size. True `Env:Geno` interaction terms
-are used rather than a pre-combined factor, because a pre-combined
-factor drops the unobserved cells of a sparse genotype × environment
-table and then no longer conforms with its variance structure.
+section, so trials may differ in size, and `at(Env):Row` /
+`at(Env):Column` give each site its own row and column variance. True
+`Env:Geno` interaction terms are used rather than a pre-combined factor,
+because a pre-combined factor drops the unobserved cells of a sparse
+genotype × environment table and then no longer conforms with its
+variance structure.
 
 Two structures are offered:
 
@@ -358,7 +370,7 @@ The model becomes
 
 ``` r
 
-random = ~ Rep + Block +
+random = ~ Rep + Block + Row + Column +
   str(~ vm(Geno, K) + vm(N1, K) + and(vm(N2, K)), ~ us(2):vm(Geno, K))
 ```
 

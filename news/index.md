@@ -4,6 +4,18 @@
 
 ### New features
 
+- **Row and column random effects.** Rows and columns are part of the
+  physical layout of every trial, so `Row` and `Column` are now fitted
+  as random effects in every model, alongside the spatial residual
+  (Gilmour, Cullis & Verbyla 1997). A MET fits them within each site,
+  `at(Env):Row` and `at(Env):Column`, so each site has its own row and
+  column variance; a site with a single row or column is left out of
+  that term. When a replicate or block factor groups the plots exactly
+  as the rows or columns do, it is the same random effect under another
+  name, so it is fitted once, as the row or column term, and the fitting
+  log says so. The fallback ladder gives up the replicate and block
+  variances before the row and column variances.
+
 - **Global field trend adjustment** (Gilmour, Cullis & Verbyla 1997).
   Linear row and column covariates, `lrow` and `lcol`, can be fitted as
   fixed effects to remove a smooth gradient before the spatial process
