@@ -106,6 +106,33 @@ test_that("the single-trial specification ladder is nested and free of repeats",
   expect_false(any(vapply(specs, function(s) is.null(s$reason), logical(1))))
 })
 
+test_that("the ladder keeps row and column variances after dropping rep and block", {
+  specs <- single_specifications("us", spatial = TRUE, nugget = TRUE,
+                                 design_terms = c("RepF", "BlockF", "Row", "Column"))
+  terms <- lapply(specs, `[[`, "design_terms")
+  expect_true(list(c("RepF", "Row", "Column")) %in% terms)
+  expect_true(list(c("Row", "Column")) %in% terms)
+  # Every step before the row and column variances go keeps them.
+  first_without <- which(!vapply(terms, function(x) "Row" %in% x, logical(1)))[1]
+  expect_match(specs[[first_without]]$reason, "no design variances")
+  # The independent-residual step is still a row-column model.
+  expect_equal(specs[[length(specs)]]$design_terms, c("RepF", "BlockF", "Row", "Column"))
+
+  met <- met_specifications("facv", 2L, TRUE, TRUE,
+                            c("RepF", "at(Env):Row", "at(Env):Column"))
+  expect_true(list(c("at(Env):Row", "at(Env):Column")) %in%
+                lapply(met, `[[`, "design_terms"))
+})
+
+test_that("row and column terms get breeder-facing names", {
+  expect_equal(pretty_term(c("Row", "at(Env):Column")),
+               c("field row", "field column within environment"))
+  expect_equal(pretty_term('at(Env, c("A", "B")):Row'), "field row (A, B)")
+  expect_equal(interpret_component("at(Env, 'Env01'):Column"),
+               "Field column (Env01) variance")
+  expect_equal(interpret_component("Row"), "Field row variance")
+})
+
 test_that("the ladder collapses to a single step when fallback is off", {
   specs <- single_specifications("us", TRUE, TRUE, "RepF", allow_fallback = FALSE)
   expect_length(specs, 1L)

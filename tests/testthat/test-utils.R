@@ -112,7 +112,8 @@ test_that("matrix_to_long can tag rows with an effect label", {
 })
 
 test_that("pretty_term never leaks an internal factor name", {
-  internal <- c("RepF", "BlockF", "Geno", "N1", "units", "EffectEnv", "EnvDummy")
+  internal <- c("RepF", "BlockF", "Geno", "N1", "units", "EffectEnv", "EnvDummy",
+                "Row", "Column")
   out <- pretty_term(internal)
   expect_false(any(out %in% internal))
   expect_equal(pretty_term("Yield"), "Yield")   # unmapped names pass through

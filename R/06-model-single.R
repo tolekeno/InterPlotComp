@@ -11,7 +11,7 @@
 #
 # In ASReml-R the two genetic effect sets are tied into one variance structure:
 #
-#   random   = ~ str(~ Geno + N1 + and(N2), ~ us(2):id(nGeno))
+#   random   = ~ Row + Column + str(~ Geno + N1 + and(N2), ~ us(2):id(nGeno))
 #   residual = ~ ar1(Column):ar1(Row)
 #
 # `and()` adds N2's design matrix onto N1's rather than creating new effects,
@@ -149,13 +149,21 @@ single_specifications <- function(structure, spatial, nugget, design_terms,
   }
   add("diag", spatial, FALSE, design_terms,
       "Constrained the direct-competition covariance to zero")
-  if (length(design_terms) > 1L) {
-    add("diag", spatial, FALSE, design_terms[1],
+  # Replicate and block variances are given up before the row and column
+  # variances, which describe the physical layout of the field.
+  layout <- design_terms[is_row_column_term(design_terms)]
+  blocking <- setdiff(design_terms, layout)
+  if (length(blocking) > 1L) {
+    add("diag", spatial, FALSE, c(blocking[1], layout),
         "Independent genetic effects, keeping only the replicate term")
   }
-  if (length(design_terms)) {
-    add("diag", spatial, FALSE, character(0),
+  if (length(blocking)) {
+    add("diag", spatial, FALSE, layout,
         "Independent genetic effects with no replicate or block variances")
+  }
+  if (length(layout)) {
+    add("diag", spatial, FALSE, character(0),
+        "Independent genetic effects with no design variances")
   }
   if (spatial) {
     add("diag", FALSE, FALSE, design_terms,
@@ -204,7 +212,7 @@ fit_single_once <- function(d, neighbour_names, opts, progress = NULL) {
     coverage <- NULL
   }
 
-  design_terms <- available_design_terms(d)
+  design_terms <- model_design_terms(d)
   n_geno <- nlevels(d$Geno)
   k <- length(neighbour_names)
 
@@ -346,7 +354,7 @@ fit_single_once <- function(d, neighbour_names, opts, progress = NULL) {
     field_trend = trend,
     field_trend_terms = trend_terms,
     outliers = outliers,
-    log = run$log,
+    log = c(attr(design_terms, "notes"), run$log),
     warnings = run$warnings,
     fallback_used = !identical(spec$reason, "Requested model"),
     converged = isTRUE(fit$converge),
@@ -569,7 +577,7 @@ describe_single_model <- function(spec, k, relationship = NULL,
     genetic,
     if (length(spec$design_terms)) {
       paste0(", random ", paste(pretty_term(spec$design_terms), collapse = " + "))
-    } else ", no replicate or block variances",
+    } else ", no design variances",
     if (spec$spatial) {
       paste0(", ", describe_residual(spec$row_process %||% "ar1",
                                      spec$col_process %||% "ar1"))

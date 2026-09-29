@@ -512,7 +512,16 @@ partition_genetic_covariance <- function(G, k, labels = NULL) {
 #' Size of the mixed-model coefficient matrix, used to gate the Cinv request.
 #' @noRd
 n_model_coefficients <- function(d, terms, n_geno, k_blocks = 2L) {
-  design <- sum(vapply(terms, function(x) nlevels(d[[x]]), integer(1)), na.rm = TRUE)
+  # A site-specific term such as at(Env):Row has one effect per level for
+  # every site it covers.
+  n_levels <- function(x) {
+    factor_name <- sub("^.*:", "", x)
+    n <- nlevels(d[[factor_name]])
+    if (startsWith(x, "at(Env)")) n * nlevels(d$Env)
+    else if (startsWith(x, "at(Env,")) n * (length(gregexpr("\"", x)[[1]]) %/% 2L)
+    else n
+  }
+  design <- sum(vapply(terms, n_levels, numeric(1)), na.rm = TRUE)
   design + k_blocks * n_geno + 10L
 }
 

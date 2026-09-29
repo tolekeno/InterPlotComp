@@ -176,6 +176,9 @@ theoretical_quantiles <- function(n) stats::qnorm(stats::ppoints(n))
 pretty_term <- function(x) {
   map <- c(
     RepF = "replicate", BlockF = "block", EnvRep = "replicate",
+    Row = "field row", Column = "field column",
+    `at(Env):Row` = "field row within environment",
+    `at(Env):Column` = "field column within environment",
     Geno = "genotype (direct)", N1 = "neighbour genotype (competitive)",
     `Env:Geno` = "environment x genotype (direct)",
     `Env:N1` = "environment x neighbour (competitive)",
@@ -183,5 +186,15 @@ pretty_term <- function(x) {
     EnvDummy = "environment"
   )
   out <- unname(map[x])
-  ifelse(is.na(out), x, out)
+  out <- ifelse(is.na(out), x, out)
+  # A row or column term fitted at only some sites, written
+  # at(Env, c("A", "B")):Row in the formula and at(Env, 'A'):Row by ASReml.
+  site_axis <- "^at\\(Env, *(.+)\\):(Row|Column)$"
+  hit <- grepl(site_axis, out)
+  if (any(hit)) {
+    sites <- gsub("^c\\(|\\)$|[\"']", "", sub(site_axis, "\\1", out[hit]))
+    axis <- tolower(sub(site_axis, "\\2", out[hit]))
+    out[hit] <- sprintf("field %s (%s)", axis, sites)
+  }
+  out
 }

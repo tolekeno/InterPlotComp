@@ -232,6 +232,85 @@ build_design_factors <- function(d, multi_env = FALSE) {
 #' @noRd
 available_design_terms <- function(d) intersect(c("RepF", "BlockF"), names(d))
 
+#' Random row and column terms for the field layout.
+#'
+#' Rows and columns are part of the physical structure of every trial, so
+#' their random effects are fitted alongside the spatial residual (Gilmour,
+#' Cullis & Verbyla 1997): the AR1 x AR1 process models smooth local trend,
+#' while `Row` and `Column` absorb whole-row and whole-column effects such as
+#' harvesting or sowing direction. A MET fits them within each site,
+#' `at(Env):Row`, so every site has its own row and column variance. A site
+#' with a single row (or column) has nothing to estimate on that axis and is
+#' left out of it. The `sites` attribute gives the sites each term covers.
+#' @noRd
+row_column_terms <- function(d, multi_env = FALSE) {
+  env <- droplevels(d$Env)
+  out <- character(0)
+  covered <- list()
+  for (f in names(FIELD_AXES)) {
+    n <- tapply(d[[FIELD_AXES[[f]]]], env, function(x) length(unique(x)))
+    sites <- names(n)[!is.na(n) & n >= 2L]
+    if (!length(sites)) next
+    term <- if (!multi_env) {
+      f
+    } else if (setequal(sites, levels(env))) {
+      sprintf("at(Env):%s", f)
+    } else {
+      sprintf("at(Env, %s):%s", level_vector_text(sites), f)
+    }
+    out <- c(out, term)
+    covered[[term]] <- sites
+  }
+  attr(out, "sites") <- covered
+  out
+}
+
+FIELD_AXES <- c(Row = "Row_i", Column = "Col_i")
+
+#' Is a design term one of the structural row or column terms?
+#' @noRd
+is_row_column_term <- function(x) grepl("(^|:)(Row|Column)$", x)
+
+#' Random design terms for a fit: replicate, block, row and column.
+#'
+#' A replicate or block factor that groups the plots exactly as the rows or
+#' columns do - blocks laid out as whole columns, say - is the same random
+#' effect under another name. Fitting both makes the Average Information
+#' matrix singular, so the row or column term is kept, as the structural one,
+#' and the duplicate is dropped with a note for the fitting log.
+#' @return character vector of terms with a `notes` attribute
+#' @noRd
+model_design_terms <- function(d, multi_env = FALSE) {
+  blocking <- available_design_terms(d)
+  layout <- row_column_terms(d, multi_env)
+  sites <- attr(layout, "sites")
+  observed <- !d$Padded %in% TRUE
+  notes <- character(0)
+
+  for (b in blocking) {
+    for (l in layout) {
+      axis <- sub("^.*:", "", l)
+      in_term <- observed & as.character(d$Env) %in% sites[[l]]
+      in_block <- observed & !is.na(d[[b]])
+      if (!identical(in_term, in_block)) next
+      a <- as.character(d[[b]])[in_block]
+      z <- paste(d$Env, d[[FIELD_AXES[[axis]]]])[in_block]
+      same <- length(unique(a)) == length(unique(z)) &&
+        length(unique(paste(a, z))) == length(unique(a))
+      if (same) {
+        blocking <- setdiff(blocking, b)
+        notes <- c(notes, sprintf(
+          "The %s factor groups the plots exactly as the field %ss do, so it is fitted once, as the %s term.",
+          pretty_term(b), tolower(axis), tolower(axis)))
+        break
+      }
+    }
+  }
+  out <- c(blocking, as.character(layout))
+  attr(out, "notes") <- notes
+  out
+}
+
 #' Per-environment field-layout summary, used for on-screen diagnostics.
 #' @noRd
 field_summary <- function(d) {

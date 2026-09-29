@@ -186,6 +186,37 @@ test_that("MET design factors are nested within environment", {
   expect_true(all(grepl(":", levels(d$RepF), fixed = TRUE)))
 })
 
+test_that("rows and columns are random design terms at every site", {
+  d <- prepare_trial_data(sample_single_trial(), single_map())
+  expect_equal(as.character(row_column_terms(d)), c("Row", "Column"))
+
+  m <- prepare_trial_data(sample_met_trial(), met_map(), multi_env = TRUE)
+  expect_equal(as.character(row_column_terms(m, multi_env = TRUE)),
+               c("at(Env):Row", "at(Env):Column"))
+
+  # A site with a single row has no row variance to estimate.
+  one_row <- m[!(m$Env == levels(m$Env)[1] & m$Row_i > 1L), ]
+  expect_equal(row_column_terms(one_row, multi_env = TRUE)[1],
+               sprintf("at(Env, %s):Row",
+                       level_vector_text(levels(m$Env)[-1])))
+  expect_true(all(is_row_column_term(c("Row", "at(Env):Column"))))
+  expect_false(any(is_row_column_term(c("RepF", "BlockF"))))
+})
+
+test_that("a block factor that duplicates the columns is fitted once, as Column", {
+  # In the sample single trial every block is one whole field column.
+  d <- complete_field_grid(prepare_trial_data(sample_single_trial(), single_map()))
+  terms <- model_design_terms(d)
+  expect_equal(as.character(terms), c("RepF", "Row", "Column"))
+  expect_match(attr(terms, "notes"), "block factor groups the plots exactly as the field columns")
+
+  # Incomplete blocks that cut across rows and columns are kept.
+  m <- complete_field_grid(prepare_trial_data(sample_met_trial(), met_map(),
+                                              multi_env = TRUE))
+  expect_equal(as.character(model_design_terms(m, multi_env = TRUE)),
+               c("RepF", "BlockF", "at(Env):Row", "at(Env):Column"))
+})
+
 test_that("field_summary reports one row per environment with honest counts", {
   d <- prepare_trial_data(sample_met_trial(), met_map(), multi_env = TRUE)
   fs <- attr(d, "field_summary")

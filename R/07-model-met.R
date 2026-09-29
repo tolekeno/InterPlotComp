@@ -6,8 +6,9 @@
 # Direct and competitive effects are environment-specific, and the 2E of them
 # share one joint covariance matrix:
 #
-#   random = ~ str(~ Env:Geno + Env:N1 + and(Env:N2),
-#                  ~ facv(EffectEnv, r):id(nGeno))
+#   random = ~ at(Env):Row + at(Env):Column +
+#            str(~ Env:Geno + Env:N1 + and(Env:N2),
+#                ~ facv(EffectEnv, r):id(nGeno))
 #   residual = ~ dsum(~ ar1(Column):ar1(Row) | Env)
 #
 # True `Env:Geno` interaction terms are used rather than a pre-combined
@@ -198,13 +199,21 @@ met_specifications <- function(structure, rank, spatial, nugget, design_terms,
   }
   add("diag", 1L, spatial, FALSE, design_terms,
       "Diagonal genetic covariance: no between-environment correlation")
-  if (length(design_terms) > 1L) {
-    add("diag", 1L, spatial, FALSE, design_terms[1],
+  # See single_specifications(): the row and column variances outlast the
+  # replicate and block variances.
+  layout <- design_terms[is_row_column_term(design_terms)]
+  blocking <- setdiff(design_terms, layout)
+  if (length(blocking) > 1L) {
+    add("diag", 1L, spatial, FALSE, c(blocking[1], layout),
         "Diagonal covariance, replicate term only")
   }
-  if (length(design_terms)) {
-    add("diag", 1L, spatial, FALSE, character(0),
+  if (length(blocking)) {
+    add("diag", 1L, spatial, FALSE, layout,
         "Diagonal covariance with no replicate or block variances")
+  }
+  if (length(layout)) {
+    add("diag", 1L, spatial, FALSE, character(0),
+        "Diagonal covariance with no design variances")
   }
   if (spatial) {
     add("diag", 1L, FALSE, FALSE, design_terms,
@@ -282,7 +291,7 @@ fit_met_once <- function(d, neighbour_names, opts, progress = NULL) {
   n_env <- length(env_levels)
   n_geno <- length(genotypes)
   k <- length(neighbour_names)
-  design_terms <- available_design_terms(d)
+  design_terms <- model_design_terms(d, multi_env = TRUE)
 
   if (isTRUE(opts$spatial)) {
     d <- d[order(d$Env, d$Col_i, d$Row_i), , drop = FALSE]
@@ -391,7 +400,7 @@ fit_met_once <- function(d, neighbour_names, opts, progress = NULL) {
     field_trend = trend,
     field_trend_terms = trend_terms,
     outliers = outliers,
-    log = run$log, warnings = run$warnings,
+    log = c(attr(design_terms, "notes"), run$log), warnings = run$warnings,
     fallback_used = !identical(spec$reason, "Requested model"),
     converged = isTRUE(fit$converge),
     description = describe_met_model(spec, k, n_env, relationship, covariate_terms,
@@ -610,7 +619,7 @@ describe_met_model <- function(spec, k, n_env, relationship = NULL,
     genetic,
     if (length(spec$design_terms)) {
       paste0(", random ", paste(pretty_term(spec$design_terms), collapse = " + "))
-    } else ", no replicate or block variances",
+    } else ", no design variances",
     if (spec$spatial) {
       paste0(", environment-specific ",
              describe_residual(spec$row_process %||% "ar1",
