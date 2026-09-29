@@ -35,10 +35,10 @@ met <- prepare_trial_data(
 
 attr(met, "field_summary")
 #>   Environment Rows Columns    Grid Plots Observed Missing_response Gaps_in_grid
-#> 1       Env01   12       9  12 × 9   108      107                1            0
-#> 2       Env02   14       8  14 × 8   111      109                2            1
-#> 3       Env03   10      10 10 × 10   100       99                1            0
-#> 4       Env04   12      10 12 × 10   120      118                2            0
+#> 1       Env01   12       9  12 × 9   108      107                1            0
+#> 2       Env02   14       8  14 × 8   111      109                2            1
+#> 3       Env03   10      10 10 × 10   100       99                1            0
+#> 4       Env04   12      10 12 × 10   120      118                2            0
 #>   Genotypes Min_reps Max_reps Unreplicated
 #> 1        40        2        4            0
 #> 2        44        2        4            0

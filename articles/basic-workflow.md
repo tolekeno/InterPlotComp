@@ -70,7 +70,7 @@ A per-environment layout summary comes back attached:
 
 attr(prepared, "field_summary")
 #>   Environment Rows Columns    Grid Plots Observed Missing_response Gaps_in_grid
-#> 1       Trial   15      12 15 × 12   179      176                3            1
+#> 1       Trial   15      12 15 × 12   179      176                3            1
 #>   Genotypes Min_reps Max_reps Unreplicated
 #> 1        60        2        3            0
 ```
