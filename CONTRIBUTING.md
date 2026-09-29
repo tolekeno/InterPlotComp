@@ -166,6 +166,7 @@ By participating you agree to abide by its terms.
 
 ## Licence
 
-Contributions are accepted under the [MIT
-Licence](https://tolekeno.github.io/InterPlotComp/LICENSE.md) that
+Contributions are accepted under the [GNU General Public License,
+version 3 or
+later](https://tolekeno.github.io/InterPlotComp/LICENSE.md), which
 covers the project.

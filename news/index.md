@@ -7,6 +7,11 @@ separate replicate and block variances at each site, so fitted variances
 and genotype predictions differ from 3.9.0 for the same data and
 options.
 
+### Licence
+
+- InterPlotComp is now licensed under the GNU General Public License,
+  version 3 or later (`GPL (>= 3)`), in place of the MIT licence.
+
 ### Changes to the model
 
 - **Row and column random effects.** Rows and columns are part of the
