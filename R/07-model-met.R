@@ -286,6 +286,10 @@ fit_met_once <- function(d, neighbour_names, opts, progress = NULL) {
   coverage <- NULL
   if (use_kinship) {
     aligned <- align_relationship(d, neighbour_names, relationship)
+    # A kinship or marker matrix comes back restricted to the trial, so the
+    # inverse ASReml uses is taken from the aligned object.
+    relationship <- aligned$relationship
+    .kinship <- relationship$ginv
     d <- aligned$data
     coverage <- aligned$coverage
   }

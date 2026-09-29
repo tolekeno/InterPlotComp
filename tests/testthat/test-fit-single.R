@@ -222,6 +222,28 @@ test_that("a relationship matrix flows through the diag structure", {
   expect_equal(res$coverage$n_in_trial, 60L)
 })
 
+test_that("a marker matrix predicts no genotypes outside the trial", {
+  skip_without_asreml()
+  # Only a pedigree predicts relatives with no plot. A marker panel that
+  # covers more lines than the trial is cut down to the trial first.
+  nb <- prepared_single()
+  trial <- levels(droplevels(nb$data$Geno))
+  panel <- c(trial, sprintf("PANEL_%02d", 1:20))
+  set.seed(11)
+  M <- matrix(stats::rbinom(length(panel) * 400, 2, 0.4), length(panel), 400,
+              dimnames = list(panel, NULL))
+  rel <- build_relationship("markers", data.frame(ID = panel, M))
+
+  res <- fit_single_model(nb$data, nb$names,
+                          fit_options(structure = "diag", nugget = FALSE,
+                                      exact_se = FALSE, relationship = rel))
+  expect_true(res$converged)
+  expect_false(any(grepl("^PANEL_", res$genetic$Genotype)))
+  expect_false(any(res$genetic$Tested == "Relative only"))
+  expect_equal(res$coverage$n_dropped, 20L)
+  expect_false(any(grepl("PANEL_", res$relationship$ids)))
+})
+
 test_that("a relationship-matrix model keeps iterating to convergence", {
   skip_without_asreml()
   # Regression guard: update() could not see the local .kinship, so every

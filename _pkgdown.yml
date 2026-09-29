@@ -72,6 +72,7 @@ reference:
     a kinship matrix or a marker-derived genomic relationship matrix.
   contents:
   - build_relationship
+  - restrict_relationship
 
 - title: Diagnostics
   desc: >

@@ -171,7 +171,7 @@ single_ui <- function(id) {
             "Relatives predicted from the relationship matrix",
             table_download_ui(ns("dl_inferred"), "Download predicted relatives"),
             DT::DTOutput(ns("inferred")),
-            note("Genotypes with plots in this trial are shown above. Individuals that appear only in the relationship matrix - parents and other relatives with no plot - are predicted from their relatives and are listed separately below, because their values rest on pedigree or marker information rather than on their own performance."),
+            note("Genotypes with plots in this trial are shown above. Individuals that appear only in the pedigree - parents and other relatives with no plot - are predicted from their relatives and are listed separately below, because their values rest on the pedigree rather than on their own performance. A kinship or marker matrix is restricted to the genotypes in the trial, so it predicts no untested lines."),
             icon_name = "diagram-3")
         )
       ),
@@ -758,12 +758,9 @@ single_server <- function(id) {
           shiny::tags$dd(if (is.null(r$relationship)) {
             "None: genotypes are treated as unrelated."
           } else {
-            sprintf(paste("%s. %d individuals, of which %d have plots in this",
-                          "trial and %d are predicted from their relatives.",
-                          "The direct variance is therefore an additive genetic",
-                          "variance and the heritability is narrow-sense."),
-                    r$relationship$label, r$coverage$n_ids,
-                    r$coverage$n_in_trial, r$coverage$n_extra)
+            paste(relationship_coverage_text(r$relationship, r$coverage),
+                  "The direct variance is therefore an additive genetic",
+                  "variance and the heritability is narrow-sense.")
           }),
           shiny::tags$dt("Standard errors"),
           shiny::tags$dd(if (r$exact_se) {

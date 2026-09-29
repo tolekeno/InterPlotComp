@@ -151,11 +151,13 @@ met_ui <- function(id) {
             "Relatives predicted from the relationship matrix",
             table_download_ui(ns("dl_inferred"), "Download predicted relatives"),
             DT::DTOutput(ns("inferred")),
-            note("Individuals that appear only in the relationship matrix - ",
+            note("Individuals that appear only in the pedigree - ",
                  "parents and other relatives with no plot in any environment - ",
                  "are predicted from their relatives and listed separately, ",
-                 "because their values rest on pedigree or marker information ",
-                 "rather than on their own performance."),
+                 "because their values rest on the pedigree rather than on ",
+                 "their own performance. A kinship or marker matrix is ",
+                 "restricted to the genotypes in the trial, so it predicts no ",
+                 "untested lines."),
             icon_name = "diagram-3")
         )
       ),
@@ -804,10 +806,7 @@ met_server <- function(id) {
           shiny::tags$dd(if (is.null(r$relationship)) {
             "None: genotypes are treated as unrelated."
           } else {
-            sprintf(paste("%s. %d individuals, of which %d have plots and %d are",
-                          "predicted from their relatives."),
-                    r$relationship$label, r$coverage$n_ids,
-                    r$coverage$n_in_trial, r$coverage$n_extra)
+            relationship_coverage_text(r$relationship, r$coverage)
           }),
           shiny::tags$dt("Standard errors"),
           shiny::tags$dd(if (r$exact_se) {

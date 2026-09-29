@@ -456,6 +456,7 @@ model_code_record <- function(fixed_text, formulae, neighbour_names, opts,
     neighbour_names = neighbour_names,
     multi_env = multi_env, spatial = spatial, kinship = !is.null(kinship),
     kinship_label = if (!is.null(kinship)) kinship$label else NULL,
+    kinship_type = if (!is.null(kinship)) kinship$type else NULL,
     maxit = as.integer(opts$maxit %||% 60L),
     workspace = opts$workspace %||% "2gb",
     trend = trend,
@@ -575,7 +576,16 @@ asreml_script <- function(result, data_file = NULL, map = NULL, axis = "rows",
     lines <- c(lines, "",
       "# Relationship matrix: rebuild it from the same pedigree or marker file.",
       sprintf("# The fitted model used: %s.", code$kinship_label %||% "a relationship matrix"),
-      "rel <- build_relationship(\"pedigree\", raw = pedigree, map = pedigree_map)  # edit",
+      switch(code$kinship_type %||% "pedigree",
+        kinship = "rel <- build_relationship(\"kinship\", raw = kinship_matrix)  # edit",
+        markers = "rel <- build_relationship(\"markers\", raw = markers)  # edit",
+        "rel <- build_relationship(\"pedigree\", raw = pedigree, map = pedigree_map)  # edit"),
+      # Only a pedigree predicts genotypes with no plot; any other matrix is
+      # cut down to the trial, exactly as the fit did.
+      if (!identical(code$kinship_type %||% "pedigree", "pedigree")) {
+        sprintf("rel <- restrict_relationship(rel, unlist(lapply(d[%s], as.character)))",
+                level_vector_text(code$equate))
+      },
       ".kinship <- rel$ginv",
       sprintf("for (v in %s) d[[v]] <- factor(as.character(d[[v]]), levels = rel$ids)",
               level_vector_text(code$equate)))

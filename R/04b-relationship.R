@@ -269,11 +269,14 @@ read_square_matrix <- function(raw) {
 #' @param raw uploaded data frame (pedigree, matrix or markers)
 #' @param map column mapping for a pedigree
 #' @param blend identity blending weight for genomic matrices
-#' @return list(ginv, ids, type, label, diagnostics, matrix)
+#' @return list(ginv, ids, type, label, kinship, matrix, diagnostics). `kinship` is
+#'   the relationship matrix for a kinship or marker source, used by
+#'   [restrict_relationship()], and NULL for a pedigree.
 #' @export
 build_relationship <- function(type, raw = NULL, map = NULL, blend = 0.01) {
   if (identical(type, "none") || is.null(raw)) return(NULL)
 
+  K <- NULL
   if (type == "pedigree") {
     ginv <- build_pedigree_ginv(raw, map)
     label <- "Pedigree numerator relationship matrix (A)"
@@ -291,10 +294,10 @@ build_relationship <- function(type, raw = NULL, map = NULL, blend = 0.01) {
     label <- "Supplied relationship matrix"
 
   } else if (type == "markers") {
-    G <- markers_to_grm(as.matrix_with_rownames(raw), blend = blend)
-    ginv <- kinship_to_ginv(G)
+    K <- markers_to_grm(as.matrix_with_rownames(raw), blend = blend)
+    ginv <- kinship_to_ginv(K)
     label <- sprintf("Genomic relationship matrix (VanRaden) from %d markers",
-                     attr(G, "n_markers"))
+                     attr(K, "n_markers"))
   } else {
     stop("Unknown relationship source: ", type, call. = FALSE)
   }
@@ -305,9 +308,61 @@ build_relationship <- function(type, raw = NULL, map = NULL, blend = 0.01) {
     ids = ids,
     type = type,
     label = label,
+    # The relationship matrix itself, kept for a kinship or marker source so
+    # that restrict_relationship() can re-invert the block for the trial.
+    kinship = K,
     matrix = ginv_to_matrix(ginv),
     diagnostics = relationship_diagnostics(ginv, type)
   )
+}
+
+#' Restrict a relationship matrix to the genotypes in a trial
+#'
+#' Genotypes that appear only in the relationship matrix - with no plot in the
+#' trial - are predicted from their relatives only when the relationship comes
+#' from a **pedigree**. A pedigree defines those individuals: parents and
+#' ancestors are what connect the tested genotypes, and their predicted
+#' values are a recognised product of a pedigree analysis. A kinship or marker
+#' matrix, by contrast, often covers a whole germplasm panel of which the
+#' trial is a small part, and predicting every untested line from it is not
+#' something the user asked for. For those sources the matrix is cut down to
+#' the trial's genotypes and inverted again; the block of the relationship
+#' matrix is taken, never the block of its inverse, which would be a
+#' different relationship.
+#'
+#' @param rel a relationship object from [build_relationship()].
+#' @param ids the genotypes in the trial. Duplicates and missing values are
+#'   ignored, so the genotype and neighbour columns of the trial data can be
+#'   passed as they are.
+#' @return `rel` unchanged for a pedigree; otherwise a relationship object
+#'   over the listed genotypes that occur in it, in the matrix's own order.
+#' @export
+#' @examples
+#' K <- diag(4) + 0.25
+#' dimnames(K) <- list(paste0("G", 1:4), paste0("G", 1:4))
+#' raw <- data.frame(ID = rownames(K), K, check.names = FALSE)
+#' rel <- build_relationship("kinship", raw)
+#' restrict_relationship(rel, c("G1", "G3", NA, "G3"))$ids
+restrict_relationship <- function(rel, ids) {
+  if (is.null(rel) || identical(rel$type, "pedigree")) return(rel)
+  keep <- intersect(rel$ids, unique(stats::na.omit(as.character(ids))))
+  if (!length(keep)) {
+    stop("None of the trial's genotypes appears in the relationship matrix.",
+         call. = FALSE)
+  }
+  if (length(keep) == length(rel$ids)) return(rel)
+  # An object built before the matrix was kept is re-derived from its inverse.
+  K <- rel$kinship %||% ginv_to_matrix(rel$ginv, max_n = Inf)
+  K <- K[keep, keep, drop = FALSE]
+  ginv <- kinship_to_ginv(K)
+  # How many untested genotypes were left out, for the interface.
+  rel$n_dropped <- (rel$n_dropped %||% 0L) + length(rel$ids) - length(keep)
+  rel$ginv <- ginv
+  rel$ids <- keep
+  rel$kinship <- K
+  rel$matrix <- ginv_to_matrix(ginv)
+  rel$diagnostics <- relationship_diagnostics(ginv, rel$type)
+  rel
 }
 
 #' First column becomes row names; the rest becomes a numeric matrix.
@@ -341,16 +396,19 @@ relationship_diagnostics <- function(ginv, type) {
 #'
 #' Every genotype with an observed plot must appear in the relationship matrix;
 #' ASReml would otherwise fail with an opaque message. Individuals present in
-#' the relationship matrix but not in the trial are kept: their effects are
-#' predicted from their relatives, which is one of the main reasons to fit a
-#' pedigree at all.
+#' a *pedigree* but not in the trial are kept: their effects are predicted from
+#' their relatives, which is one of the main reasons to fit a pedigree at all.
+#' A kinship or marker matrix is restricted to the trial's genotypes first, by
+#' [restrict_relationship()], so no untested line is predicted from it.
 #'
 #' @param d trial data carrying Geno and the neighbour factors
 #' @param neighbour_names N1..Nk
 #' @param rel relationship object from `build_relationship()`
+#' @return list(data, coverage, relationship), where `relationship` is the
+#'   object the model must use - restricted, unless it came from a pedigree.
 #' @noRd
 align_relationship <- function(d, neighbour_names, rel) {
-  if (is.null(rel)) return(list(data = d, coverage = NULL))
+  if (is.null(rel)) return(list(data = d, coverage = NULL, relationship = NULL))
 
   observed <- unique(as.character(d$Geno[!is.na(d$Yield) & !is.na(d$Geno)]))
   missing <- setdiff(observed, rel$ids)
@@ -362,6 +420,12 @@ align_relationship <- function(d, neighbour_names, rel) {
          "matrix off.", call. = FALSE)
   }
 
+  # Genotypes in the trial: those with a plot, observed or not, and those
+  # that stand next to one. All of them enter the model through Geno or a
+  # neighbour factor.
+  in_trial <- unlist(lapply(d[c("Geno", neighbour_names)], as.character))
+  rel <- restrict_relationship(rel, in_trial)
+
   for (v in c("Geno", neighbour_names)) {
     d[[v]] <- factor(as.character(d[[v]]), levels = rel$ids)
   }
@@ -371,9 +435,30 @@ align_relationship <- function(d, neighbour_names, rel) {
     coverage = list(
       n_ids = length(rel$ids),
       n_in_trial = length(observed),
-      n_extra = length(rel$ids) - length(observed)
-    )
+      n_extra = length(rel$ids) - length(observed),
+      n_dropped = rel$n_dropped %||% 0L,
+      predicts_relatives = identical(rel$type, "pedigree")
+    ),
+    relationship = rel
   )
+}
+
+#' One-sentence account of which genotypes the relationship matrix covered.
+#' @noRd
+relationship_coverage_text <- function(rel, coverage) {
+  if (isTRUE(coverage$predicts_relatives)) {
+    return(sprintf(paste("%s. %d individuals, of which %d have observed plots",
+                         "and %d are predicted from their relatives."),
+                   rel$label, coverage$n_ids, coverage$n_in_trial,
+                   coverage$n_extra))
+  }
+  paste0(sprintf("%s, restricted to the %d genotypes in the trial.",
+                 rel$label, coverage$n_ids),
+         if (isTRUE(coverage$n_dropped > 0)) {
+           sprintf(paste(" %d genotype(s) with no plot were left out: relatives",
+                         "are predicted only from a pedigree."),
+                   coverage$n_dropped)
+         } else "")
 }
 
 #' Heatmap of the relationship matrix.

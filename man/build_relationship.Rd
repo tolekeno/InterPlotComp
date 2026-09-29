@@ -16,7 +16,9 @@ build_relationship(type, raw = NULL, map = NULL, blend = 0.01)
 \item{blend}{identity blending weight for genomic matrices}
 }
 \value{
-list(ginv, ids, type, label, diagnostics, matrix)
+list(ginv, ids, type, label, kinship, matrix, diagnostics). \code{kinship} is
+the relationship matrix for a kinship or marker source, used by
+\code{\link[=restrict_relationship]{restrict_relationship()}}, and NULL for a pedigree.
 }
 \description{
 Build a relationship object from whichever source the user supplied.

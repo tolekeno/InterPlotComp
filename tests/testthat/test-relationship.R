@@ -110,7 +110,7 @@ test_that("build_relationship assembles a genomic matrix end to end", {
   rel <- build_relationship("markers",
                             data.frame(id = rownames(toy_markers()),
                                        toy_markers(), check.names = FALSE))
-  expect_named(rel, c("ginv", "ids", "type", "label", "matrix", "diagnostics"))
+  expect_named(rel, c("ginv", "ids", "type", "label", "kinship", "matrix", "diagnostics"))
   expect_equal(rel$type, "markers")
   expect_length(rel$ids, 30L)
   expect_match(rel$label, "VanRaden")
@@ -142,6 +142,48 @@ test_that("align_relationship re-levels the genetic factors onto the matrix ids"
   expect_equal(levels(out$data$N1), rel$ids)
   expect_equal(out$coverage$n_extra, 1L)
   expect_equal(out$coverage$n_ids, length(ids) + 1L)
+})
+
+test_that("a kinship or marker matrix is restricted to the trial's genotypes", {
+  nb <- prepared_single()
+  ids <- levels(nb$data$Geno)
+  panel <- c(ids, sprintf("PANEL_%02d", 1:15))
+  set.seed(3)
+  M <- matrix(stats::rbinom(length(panel) * 300, 2, 0.4), length(panel), 300,
+              dimnames = list(panel, NULL))
+  rel <- build_relationship("markers", data.frame(ID = panel, M))
+  expect_length(rel$ids, length(panel))
+
+  out <- align_relationship(nb$data, nb$names, rel)
+  expect_setequal(out$relationship$ids, ids)
+  expect_equal(levels(out$data$Geno), out$relationship$ids)
+  expect_equal(out$coverage$n_dropped, 15L)
+  expect_false(out$coverage$predicts_relatives)
+  expect_match(relationship_coverage_text(out$relationship, out$coverage),
+               "15 genotype(s) with no plot were left out", fixed = TRUE)
+
+  # The kept block is the block of the relationship matrix, not of its
+  # inverse: re-inverting the restricted inverse returns the original entries.
+  K_full <- rel$kinship
+  K_kept <- ginv_to_matrix(out$relationship$ginv)
+  expect_equal(unname(K_kept), unname(K_full[rownames(K_kept), rownames(K_kept)]),
+               tolerance = 1e-8)
+})
+
+test_that("a pedigree keeps its untested relatives", {
+  rel <- list(ginv = NULL, ids = c("A", "B", "PARENT"), type = "pedigree")
+  expect_identical(restrict_relationship(rel, c("A", "B")), rel)
+})
+
+test_that("restrict_relationship ignores missing and repeated ids", {
+  K <- diag(4) + 0.25
+  dimnames(K) <- list(paste0("G", 1:4), paste0("G", 1:4))
+  rel <- build_relationship("kinship", data.frame(ID = rownames(K), K,
+                                                  check.names = FALSE))
+  out <- restrict_relationship(rel, c("G3", NA, "G1", "G3", "OTHER"))
+  expect_equal(out$ids, c("G1", "G3"))
+  expect_equal(out$n_dropped, 2L)
+  expect_error(restrict_relationship(rel, "OTHER"), "None of the trial")
 })
 
 test_that("align_relationship refuses to drop an observed genotype silently", {
