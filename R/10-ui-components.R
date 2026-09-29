@@ -38,17 +38,16 @@ switch_input <- function(inputId, label, value = TRUE, help = NULL) {
   if (is.null(help)) ctl else shiny::tagList(ctl, shiny::div(class = "section-note", help))
 }
 
-#' Select control with search when the list is long.
+#' Select control for a column mapping.
+#'
+#' Always Shiny's selectize control, which already searches as you type. A
+#' long list used to switch to a shinyWidgets picker, which is drawn by a
+#' different library: a file with nine or more columns then gave a sidebar in
+#' which some selects were half as tall again as their neighbours.
 #' @noRd
 select_input <- function(inputId, label, choices, selected = NULL, ...) {
-  if (has_pkg("shinyWidgets") && length(choices) > 8) {
-    shinyWidgets::pickerInput(inputId, label, choices = choices, selected = selected,
-                              options = list(`live-search` = TRUE, size = 12),
-                              width = "100%", ...)
-  } else {
-    shiny::selectInput(inputId, label, choices = choices, selected = selected,
-                       width = "100%", ...)
-  }
+  shiny::selectInput(inputId, label, choices = choices, selected = selected,
+                     width = "100%", ...)
 }
 
 #' Coloured status banner.
@@ -222,17 +221,22 @@ panel_card <- function(title, ..., subtitle = NULL, icon_name = NULL,
 #' the licence, that it stays on their machine, and that the application has no
 #' part in obtaining or managing it.
 #' @noRd
-licence_notice <- function() {
+licence_notice <- function(collapsed = TRUE) {
   s <- asreml_status()
   shiny::tagList(
     status_banner(if (s$ok) "ok" else "bad", s$title, s$detail),
-    note(
-      shiny::strong("Licensing. "),
-      "ASReml-R is commercial software licensed by VSNi and must already be ",
-      "installed and activated in the R installation running this application. ",
-      "This application does not supply, embed, store, transmit or manage an ",
-      "ASReml licence, and it will not run the analysis without one. Do not ",
-      "commit a licence file or activation key to a shared or public repository."
+    # Folded away in the sidebar: it is read once, and open it would push the
+    # rest of the sidebar out of sight on every visit. The Guide shows it open.
+    shiny::tags$details(
+      class = "licence-details", open = if (!collapsed) NA,
+      shiny::tags$summary("About the ASReml licence"),
+      note(
+        "ASReml-R is commercial software licensed by VSNi and must already be ",
+        "installed and activated in the R installation running this application. ",
+        "This application does not supply, embed, store, transmit or manage an ",
+        "ASReml licence, and it will not run the analysis without one. Do not ",
+        "commit a licence file or activation key to a shared or public repository."
+      )
     )
   )
 }

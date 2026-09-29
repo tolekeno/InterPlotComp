@@ -422,7 +422,8 @@ field_summary <- function(d) {
       Environment = e,
       Rows = n_rows,
       Columns = n_cols,
-      Grid = paste0(n_rows, " \u00d7 ", n_cols),
+      # Non-breaking spaces, so "15 x 12" never wraps in a narrow table cell.
+      Grid = paste0(n_rows, "\u00a0\u00d7\u00a0", n_cols),
       Plots = nrow(z),
       Observed = sum(!is.na(z$Yield)),
       Missing_response = sum(is.na(z$Yield)),

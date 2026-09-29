@@ -95,7 +95,9 @@ plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
 
   p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$Column, y = .data$Row,
                                        fill = .data[[value]])) +
-    ggplot2::geom_tile(colour = "white", linewidth = 0.25) +
+    # A thin white gap between plots keeps neighbouring tiles distinct without
+    # drawing a grid over the data.
+    ggplot2::geom_tile(colour = "white", linewidth = 0.4) +
     # Environments differ in size, so faceted field plans need free scales.
     # ggplot2 4.x rejects free scales alongside a fixed coordinate ratio, so
     # the square-plot aspect is only imposed on a single, unfaceted field.
@@ -109,8 +111,11 @@ plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
                   caption = wrap_caption(caption, base_size)) +
     theme_trial(base_size, grid = "none") +
     ggplot2::theme(legend.position = "right",
-                   legend.key.height = grid::unit(1.6, "lines"),
-                   legend.key.width = grid::unit(0.55, "lines"),
+                   # A long bar, so the ramp's light-to-dark steps can be read
+                   # against the field rather than guessed from a stub. A
+                   # colour bar is five keys long, so this is a fifth of it.
+                   legend.key.height = grid::unit(if (facet) 2.2 else 2.8, "lines"),
+                   legend.key.width = grid::unit(0.8, "lines"),
                    # The guide title sits above its key. Against a right-hand
                    # bar that puts it level with the plot title, which they
                    # then collide with on a narrow panel.
@@ -118,11 +123,17 @@ plot_field_map <- function(d, value = "Observed", title = NULL, subtitle = NULL,
 
   p <- p + if (diverging) {
     ggplot2::scale_fill_gradientn(colours = DIVERGING, limits = c(-limit, limit),
-                                  na.value = PAL$line_soft)
+                                  na.value = MISSING_FILL)
   } else {
-    ggplot2::scale_fill_gradientn(colours = SEQUENTIAL, na.value = PAL$line_soft)
+    ggplot2::scale_fill_gradientn(colours = SEQUENTIAL, na.value = MISSING_FILL)
   }
-  if (facet) p <- p + ggplot2::facet_wrap(~ Env, scales = "free")
+  if (facet) {
+    # Up to four sites side by side: a field plan is usually taller than it is
+    # wide, and a full-width card has room for a row of four.
+    n_env <- length(unique(d$Env))
+    p <- p + ggplot2::facet_wrap(~ Env, scales = "free",
+                                 ncol = min(n_env, 4L))
+  }
   p
 }
 

@@ -89,15 +89,21 @@ add_met_dummy_factors <- function(d) {
 
 #' Highest sensible factor-analytic rank for E environments.
 #'
-#' An FA(r) covariance over n dimensions is identified only while the number of
-#' free parameters does not exceed n(n + 1)/2.
+#' The joint FA(r) covariance is over n = 2E direct and competitive effects.
+#' It is identified only while its n(r + 1) - r(r - 1)/2 free parameters do
+#' not exceed the n(n + 1)/2 of an unstructured matrix, which is the Ledermann
+#' bound (n - r)^2 >= n + r. The menu offers at most `FA_RANK_CAP` factors:
+#' beyond that a model is rarely estimable from trial data and never
+#' interpretable.
 #' @noRd
 max_fa_rank <- function(n_env, structure = "facv") {
   n <- 2L * n_env
   r <- 1L
-  while ((r + 1L) * n - (r + 1L) * r / 2 <= n * (n + 1) / 2 && r < 4L) r <- r + 1L
-  max(1L, min(r, n_env - 1L, 3L))
+  while (r < FA_RANK_CAP && (n - (r + 1L))^2 >= n + (r + 1L)) r <- r + 1L
+  r
 }
+
+FA_RANK_CAP <- 7L
 
 #' Build the MET random and residual formulae.
 #' @noRd

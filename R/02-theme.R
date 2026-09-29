@@ -94,11 +94,19 @@ PAL_DARK <- list(
   pure        = "#006EBE"
 )
 
-# Sequential ramp for magnitude (yield, semivariance). One hue, light to dark,
-# monotone in lightness with every adjacent gap >= 0.06 L and the light end
-# still at 2:1 against white, so the top of the ramp is visible rather than
-# implied.
-SEQUENTIAL <- c("#02D279", "#03B86A", "#039F5A", "#03864B", "#036E3D", "#02562F")
+# Sequential ramp for magnitude (yield, semivariance, relationship). One hue,
+# light to dark, over the full 100-700 span of a validated blue ramp: a
+# continuous heatmap needs the whole lightness range, so that a field trend
+# reads as light-to-dark rather than as neighbouring shades of one colour.
+# The ramp this replaced was six saturated greens between L 0.75 and 0.40,
+# too narrow a band to show a gradient across a field. Blue also keeps the
+# field maps clear of the green of the interface.
+SEQUENTIAL <- c("#CDE2FB", "#9EC5F4", "#6DA7EC", "#3987E5", "#256ABF",
+                "#184F95", "#0D366B")
+
+# Plots with no value on a field map: a neutral grey that no step of either
+# ramp can be mistaken for, so a missing plot never reads as a low yield.
+MISSING_FILL <- "#BDBDBA"
 
 # Diverging ramp for polarity (genetic correlations, effects centred on zero).
 # Two hues around a *neutral* midpoint - never a hue at the middle - with
@@ -314,6 +322,16 @@ hr { border-color: var(--ipc-line); opacity: 1; margin: ", SPACE$x4, " 0; }
   border-right: 1px solid var(--ipc-line);
 }
 .bslib-sidebar-layout > .sidebar > .sidebar-content { padding: ", SPACE$x4, "; }
+/* On a desktop the set-up column is held to the window and scrolls on its
+   own, so it stays beside the results while they scroll and the docked run
+   button is always on screen. Left to grow with its panels it ran to twice
+   the window height, with the button far below the fold. */
+@media (min-width: 992px) {
+  .bslib-sidebar-layout > .sidebar {
+    position: sticky; top: ", SPACE$x3, "; align-self: start;
+    max-height: calc(100vh - 5.5rem);
+  }
+}
 .bslib-sidebar-layout > .sidebar .sidebar-title {
   font-size: ", TYPE$xs, "; text-transform: uppercase; letter-spacing: .09em;
   font-weight: 700; color: var(--ipc-muted); margin-bottom: ", SPACE$x3, ";
@@ -370,11 +388,17 @@ hr { border-color: var(--ipc-line); opacity: 1; margin: ", SPACE$x4, " 0; }
 .accordion-body { padding: ", SPACE$x3, " .75rem ", SPACE$x4, "; }
 
 /* -------------------------------------------------- tabs, pills, navs ---- */
-.nav-tabs { border-bottom: 1px solid var(--ipc-line); gap: .1rem; }
+/* A results tab bar stays on one line: a wrapped bar strands its last tab on
+   a row of its own. Too narrow a window scrolls the bar sideways instead. */
+.nav-tabs {
+  border-bottom: 1px solid var(--ipc-line); gap: .1rem;
+  flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+}
 .nav-tabs .nav-link {
   font-weight: 550; font-size: ", TYPE$sm, "; color: var(--ipc-muted);
   border: none; border-bottom: 2px solid transparent; border-radius: 0;
-  padding: .55rem .85rem; display: inline-flex; align-items: center; gap: .4rem;
+  padding: .55rem .75rem; display: inline-flex; align-items: center; gap: .4rem;
+  white-space: nowrap;
   transition: color .15s ease, border-color .15s ease;
 }
 .nav-tabs .nav-link:hover { color: var(--ipc-ink); border-bottom-color: var(--ipc-line); }
@@ -521,7 +545,7 @@ hr { border-color: var(--ipc-line); opacity: 1; margin: ", SPACE$x4, " 0; }
 /* ------------------------------------------------------- metric strip ---- */
 .metric-row {
   display: grid; gap: ", SPACE$x3, "; margin-bottom: ", SPACE$x4, ";
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 .metric {
   background: var(--ipc-surface); border: 1px solid var(--ipc-line);
@@ -627,6 +651,24 @@ table.dataTable.stripe tbody tr.odd:hover td { background: var(--ipc-primary-lt)
 }
 [data-bs-theme='dark'] .step-badge { color: var(--ipc-primary-dk); }
 .licence-box { font-size: ", TYPE$sm, "; }
+.licence-details { margin-top: ", SPACE$x2, "; }
+.licence-details > summary {
+  font-size: ", TYPE$sm, "; font-weight: 600; color: var(--ipc-muted);
+  cursor: pointer; list-style-position: inside;
+}
+.licence-details > summary:hover { color: var(--ipc-ink); }
+.licence-details[open] > summary { margin-bottom: ", SPACE$x2, "; }
+
+/* The run button is docked to the foot of the sidebar's scrolling column, so
+   it stays in reach however many set-up panels are open. */
+.run-dock {
+  position: sticky; bottom: calc(-1 * ", SPACE$x4, "); z-index: 5;
+  background: var(--ipc-surface);
+  margin: ", SPACE$x3, " calc(-1 * ", SPACE$x4, ") 0;
+  padding: ", SPACE$x3, " ", SPACE$x4, ";
+  border-top: 1px solid var(--ipc-line);
+  box-shadow: 0 -6px 12px -8px rgba(15, 33, 26, .18);
+}
 /* ASReml failure messages are multi-line and must stay copyable and readable. */
 .error-detail {
   white-space: pre-wrap; font-size: 0.78rem; margin: .4rem 0 0;

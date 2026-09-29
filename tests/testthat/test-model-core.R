@@ -225,6 +225,9 @@ test_that("max_fa_rank never exceeds what the environments can support", {
   expect_lte(max_fa_rank(2), 2L)
   expect_lte(max_fa_rank(10), 10L)
   expect_gte(max_fa_rank(4), 1L)
+  # The Ledermann bound on 2E joint effects, capped at seven factors.
+  expect_equal(vapply(2:8, max_fa_rank, integer(1)), c(1L, 3L, 4L, 6L, 7L, 7L, 7L))
+  expect_equal(max_fa_rank(40), 7L)
 })
 
 test_that("covariate_fixed_terms follows the own-plot adjustment switch", {

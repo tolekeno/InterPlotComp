@@ -373,7 +373,7 @@ guide_ui <- function(id) {
     ),
 
     shiny::div(
-      panel_card("ASReml-R licence", licence_notice(), icon_name = "shield-lock",
+      panel_card("ASReml-R licence", licence_notice(collapsed = FALSE), icon_name = "shield-lock",
                  full_screen = FALSE),
       panel_card(
         "Worked examples", icon_name = "download", full_screen = FALSE,

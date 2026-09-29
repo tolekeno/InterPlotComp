@@ -28,6 +28,30 @@ predictions differ from 3.9.0 for the same data and options.
   term is the same effect. Single-trial models are
   unchanged.
 
+## Interface
+
+* **Factor-analytic rank up to 7.** The MET rank menu now goes up to seven
+  factors, limited to what the number of environments can identify (the
+  Ledermann bound on the 2E joint effects): 3 for three sites, 4 for four, 6
+  for five and 7 from six sites on. It previously stopped at 3.
+
+* **Clearer field plans.** Field maps use a blue ramp that runs from pale to
+  dark, so a fertility gradient reads as light to dark; the previous ramp was
+  six saturated greens too close together to show one. Plots with no
+  response are a neutral grey that no step of the ramp can be mistaken for,
+  the legend bar is longer, and the field plan has a full-width card of its
+  own, with site plans side by side in a MET. The variogram and relationship
+  heatmaps use the same ramp.
+
+* **Layout.** The set-up sidebar keeps to the height of the window and
+  scrolls on its own, with the *Fit* button docked at its foot, so the button
+  is always in reach. The results tab bar stays on one line, the metric
+  strip fits six values on a row, table cells such as `15 x 12` no longer
+  wrap, and the licence notice in the sidebar is folded into a one-line
+  disclosure (the Guide still shows it in full). Column-mapping selects are
+  all the same control; a file with nine or more columns used to switch some
+  of them to a differently styled picker.
+
 # InterPlotComp 3.9.0
 
 ## New features

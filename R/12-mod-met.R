@@ -39,7 +39,10 @@ met_ui <- function(id) {
                "environment. The diagonal structure is its nested null model: ",
                "environment-specific variances with no genetic correlation ",
                "between sites. If the joint model is singular, lower the ",
-               "factor-analytic rank before falling back to the diagonal.")
+               "factor-analytic rank before falling back to the diagonal. ",
+               "The rank menu goes up to 7, limited to what the number of ",
+               "environments can identify: 3 for three sites, 4 for four, ",
+               "6 for five and 7 from six sites on.")
         ),
         bslib::accordion_panel(
           "4. Genetic relationship", value = "relationship",
@@ -95,10 +98,14 @@ met_ui <- function(id) {
         )
       ),
 
-      shiny::hr(),
-      shiny::actionButton(ns("run"), "Fit MET competition model",
-                          icon = shiny::icon("play"),
-                          class = "btn-primary w-100 btn-lg"),
+      # Docked to the foot of the sidebar, so the button stays in reach
+      # however many set-up panels are open.
+      shiny::div(
+        class = "run-dock",
+        shiny::actionButton(ns("run"), "Fit MET competition model",
+                            icon = shiny::icon("play"),
+                            class = "btn-primary w-100 btn-lg")
+      ),
       shiny::uiOutput(ns("run_note"))
     ),
 
@@ -112,13 +119,10 @@ met_ui <- function(id) {
           condition = "output.has_data === true", ns = ns,
           panel_card("Environment summary", DT::DTOutput(ns("field_summary")),
                      icon_name = "rulers", full_screen = FALSE),
-          bslib::layout_columns(
-            col_widths = c(7, 5),
-            panel_card("Field plans", figure_ui(ns("fig_field"), "520px"),
-                       icon_name = "map"),
-            panel_card("Uploaded data", DT::DTOutput(ns("preview")),
-                       icon_name = "file-earmark-spreadsheet")
-          )
+          panel_card("Field plans", figure_ui(ns("fig_field"), "560px"),
+                     icon_name = "map"),
+          panel_card("Uploaded data", DT::DTOutput(ns("preview")),
+                     icon_name = "file-earmark-spreadsheet")
         ),
         shiny::conditionalPanel(
           condition = "output.has_relationship === true", ns = ns,
@@ -495,7 +499,7 @@ met_server <- function(id) {
         data.frame(Row = d$Row_i, Column = d$Col_i, Env = d$Env, Observed = d$Yield),
         "Observed", "Observed response by environment", NULL,
         diverging = FALSE, facet = TRUE, base_size = bs, fill_label = "Response")
-    }, "met_field_plans", "520px")
+    }, "met_field_plans", "560px")
 
     # ---- fitting ----------------------------------------------------------
     result <- shiny::eventReactive(input$run, {
