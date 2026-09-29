@@ -28,4 +28,7 @@ build_relationship(type, raw = NULL, map = NULL, blend = 0.01)
 
 ## Value
 
-list(ginv, ids, type, label, diagnostics, matrix)
+list(ginv, ids, type, label, kinship, matrix, diagnostics). `kinship` is
+the relationship matrix for a kinship or marker source, used by
+[`restrict_relationship()`](https://tolekeno.github.io/InterPlotComp/reference/restrict_relationship.md),
+and NULL for a pedigree.

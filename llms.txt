@@ -855,6 +855,8 @@ a kinship matrix or a marker-derived genomic relationship matrix.
 
 - [`build_relationship()`](https://tolekeno.github.io/InterPlotComp/reference/build_relationship.md)
   : Build a relationship object from whichever source the user supplied.
+- [`restrict_relationship()`](https://tolekeno.github.io/InterPlotComp/reference/restrict_relationship.md)
+  : Restrict a relationship matrix to the genotypes in a trial
 
 ## Diagnostics
 

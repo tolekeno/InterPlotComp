@@ -32,6 +32,18 @@ options.
   whole rows or columns - there the row or column term is the same
   effect. Single-trial models are unchanged.
 
+- **Relatives are predicted only from a pedigree.** Genotypes that
+  appear in the relationship matrix but have no plot in the trial are
+  predicted from their relatives only when the relationship comes from a
+  pedigree, where parents and ancestors are the point. A kinship or
+  marker matrix is now restricted to the genotypes in the trial before
+  the fit - the block of the relationship matrix is taken and inverted
+  again - so a matrix covering a whole germplasm panel no longer
+  produces predictions for every untested line. The model description
+  says how many genotypes were left out. The new
+  [`restrict_relationship()`](https://tolekeno.github.io/InterPlotComp/reference/restrict_relationship.md)
+  does this, and the exported ASReml script calls it.
+
 ### Interface
 
 - **Factor-analytic rank up to 7.** The MET rank menu now goes up to
