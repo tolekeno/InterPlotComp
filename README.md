@@ -310,21 +310,36 @@ pre-combined factor, because a pre-combined factor drops the unobserved cells of
 a sparse genotype × environment table and then no longer conforms with its
 variance structure.
 
-Two structures are offered:
+Three structures are offered:
 
 | Structure | Parameters | Assumption |
 |---|---|---|
 | **Joint factor-analytic** | 2E(r+1) | Direct and competitive effects may have different G×E patterns, and the direct–competition covariance is estimated in every environment. Most general. |
+| **Joint factor-analytic, extended `fa()`** | 2E(r+1) | The same model, fitted with ASReml's sparse `fa()` formulation. Same likelihood; often faster and more stable with many environments or a higher rank. |
 | **Diagonal** | 2E | No between-environment correlation. The null model for G×E. |
 
+`fa()` augments the term it is attached to with r latent factor-score
+blocks, so inside `str()` the model side must supply r extra genotype-sized
+blocks. These are dummy factors with the genotype levels and no observed
+value, kept by `asreml.options(drop.unused.levels = FALSE)`:
+
+```r
+str(~ Env:Geno + Env:N1 + and(Env:N2) + FaDum1 + ... + FaDumr,
+    ~ fa(EffectEnv, r):id(nGeno))
+```
+
+The application adds the dummies and sets the option for you, and the
+exported ASReml script does the same.
+
 > **Withdrawn in 3.9.0.** The *Separable us(2) × FA* and *Separate fa() per
-> effect* structures are no longer offered. Each bought convergence with an
+> effect* structures are no longer offered. (`structure = "fa"` now means
+> the joint model in its extended `fa()` form; see above.) Each bought convergence with an
 > assumption the joint model does not make — one environment correlation
 > pattern shared by the direct and competitive effects, or a direct–competition
 > covariance fixed at zero, which on the worked example inflated the pure-stand
 > variance by 1.3× to 8.7× — and results fitted under them were too easily read
-> as fully estimated. A script that still asks for `structure = "separable"` or
-> `"fa"` now stops with a message naming the replacement. When the joint model
+> as fully estimated. A script that still asks for `structure = "separable"`
+> now stops with a message naming the replacement. When the joint model
 > is singular, lower the factor-analytic rank; the simplification ladder does
 > this automatically before falling back to the diagonal structure.
 

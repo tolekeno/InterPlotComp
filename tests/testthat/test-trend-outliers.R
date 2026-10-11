@@ -254,8 +254,8 @@ test_that("a lower threshold is passed through to the screen", {
 
 # ---- retired MET structures ---------------------------------------------------
 
-test_that("only the joint and diagonal MET structures are offered", {
-  expect_setequal(unname(MET_STRUCTURES), c("facv", "diag"))
+test_that("only the joint (facv, fa) and diagonal MET structures are offered", {
+  expect_setequal(unname(MET_STRUCTURES), c("facv", "fa", "diag"))
   html <- paste(as.character(htmltools::renderTags(met_ui("m"))$html), collapse = "\n")
   expect_false(grepl("Separable us(2)", html, fixed = TRUE))
   expect_false(grepl("Separate fa()", html, fixed = TRUE))
@@ -265,7 +265,7 @@ test_that("check_met_structure refuses the withdrawn structures by name", {
   expect_equal(check_met_structure("facv"), "facv")
   expect_equal(check_met_structure(NULL), "facv")
   expect_error(check_met_structure("separable"), "Separable us\\(2\\) x FA.*removed")
-  expect_error(check_met_structure("fa"), "Separate fa\\(\\) per effect.*removed")
+  expect_equal(check_met_structure("fa"), "fa")
   expect_error(check_met_structure("nonsense"), "Unknown MET structure")
 })
 
@@ -274,13 +274,15 @@ test_that("the MET fallback ladder no longer steps through withdrawn structures"
                               row_process = "ar2")
   used <- vapply(specs, `[[`, character(1), "structure")
   expect_true(all(used %in% c("facv", "diag")))
+  specs <- met_specifications("fa", 3L, TRUE, TRUE, c("RepF", "BlockF"))
+  used <- vapply(specs, `[[`, character(1), "structure")
+  expect_true(all(used %in% c("fa", "diag")))
+  expect_equal(vapply(specs[1:3], `[[`, integer(1), "rank"), 3:1)
   expect_equal(specs[[1]]$reason, "Requested model")
 })
 
-test_that("met_formulae rejects the withdrawn structures", {
+test_that("met_formulae rejects the withdrawn structure", {
   expect_error(met_formulae("RepF", c("N1", "N2"), 40, 4, structure = "separable"),
-               "Unknown MET structure")
-  expect_error(met_formulae("RepF", c("N1", "N2"), 40, 4, structure = "fa"),
                "Unknown MET structure")
 })
 
@@ -319,6 +321,22 @@ test_that("asreml_script writes a parseable script with the fitted formulae", {
   expect_match(txt, 'equate.levels = c("Geno", "N1", "N2")', fixed = TRUE)
   expect_match(txt, "maxit = 50", fixed = TRUE)
   expect_false(grepl("removed <-", txt, fixed = TRUE))
+})
+
+test_that("asreml_script adds the fa() factor-score dummies", {
+  res <- fake_result()
+  f <- met_formulae("RepF", c("N1", "N2"), 40, 3, "fa", 2L, TRUE, FALSE)
+  res$model_code$random <- formula_line(f$random)
+  script <- asreml_script(res)
+  expect_silent(parse(text = script))
+  txt <- paste(script, collapse = "\n")
+  expect_match(txt, "fa(EffectEnv, 2)", fixed = TRUE)
+  expect_match(txt, "drop.unused.levels = FALSE", fixed = TRUE)
+  expect_match(txt, "for (j in seq_len(2)) d[[paste0(\"FaDum\", j)]]", fixed = TRUE)
+  # Created after any re-levelling of Geno, just before the fit.
+  expect_lt(grep("FaDum", script, fixed = TRUE)[1],
+            grep("fit <- asreml::asreml(", script, fixed = TRUE))
+  expect_false(grepl("FaDum", paste(asreml_script(fake_result()), collapse = "\n")))
 })
 
 test_that("asreml_script records the removed outliers", {

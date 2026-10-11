@@ -140,13 +140,49 @@ test_that("a factor-analytic MET estimates between-environment correlation", {
   expect_s3_class(plot_correlation_heatmap(cors, "Direct effects"), "ggplot")
 })
 
-test_that("the withdrawn MET structures are refused before anything is fitted", {
+test_that("the withdrawn MET structure is refused before anything is fitted", {
   # No ASReml needed: the check runs before the licence is touched.
   nb <- prepared_met()
   expect_error(fit_met_model(nb$data, nb$names, met_options(structure = "separable")),
                "removed in InterPlotComp 3.9.0")
-  expect_error(fit_met_model(nb$data, nb$names, met_options(structure = "fa")),
-               "structure = \"facv\"", fixed = TRUE)
+})
+
+test_that("the extended fa() structure fits the same model as facv()", {
+  skip_without_asreml()
+  nb <- prepared_met()
+  # Rank 1: at rank 2 the four example sites leave several specific variances
+  # on the boundary, and the two algorithms can stop at different points.
+  opts <- met_options(rank = 1L, auto_simplify = FALSE, max_rounds = 15L)
+  fa <- fit_met_model(nb$data, nb$names, utils::modifyList(opts, list(structure = "fa")))
+  cv <- fit_met_model(nb$data, nb$names, utils::modifyList(opts, list(structure = "facv")))
+
+  expect_equal(fa$spec$structure, "fa")
+  expect_equal(fa$fit$loglik, cv$fit$loglik, tolerance = 1e-2)
+  expect_equal(fa$matrices$pure, cv$matrices$pure, tolerance = 0.05)
+  expect_false(fa$correlations_assumed)
+  expect_equal(nrow(fa$fa_summary), 2L * length(fa$environments))
+  expect_true("Loading_1" %in% names(fa$fa_summary))
+  expect_match(fa$description, "extended fa() formulation", fixed = TRUE)
+  # Genotype solutions are extracted exactly as for facv().
+  expect_equal(sum(fa$values$Status == "Estimable"), sum(cv$values$Status == "Estimable"))
+  key <- function(v) paste(v$Environment, v$Genotype)
+  matched <- cv$values$Pure_stand_effect[match(key(fa$values), key(cv$values))]
+  expect_equal(stats::cor(fa$values$Pure_stand_effect, matched, use = "complete.obs"),
+               1, tolerance = 0.01)
+  # The option is restored after the fit.
+  expect_true(asreml::asreml.options()$drop.unused.levels)
+})
+
+test_that("a rank-2 fa() MET converges and reports both loadings", {
+  skip_without_asreml()
+  nb <- prepared_met()
+  res <- fit_met_model(nb$data, nb$names,
+                       met_options(structure = "fa", rank = 2L, auto_simplify = FALSE,
+                                   max_rounds = 15L))
+  # Convergence needs drop.unused.levels = FALSE through every update() round.
+  expect_true(res$converged)
+  expect_true(all(c("Loading_1", "Loading_2") %in% names(res$fa_summary)))
+  expect_match(res$model_code$random, "FaDum2", fixed = TRUE)
 })
 
 test_that("the MET fallback ladder never lands on a withdrawn structure", {
@@ -268,6 +304,21 @@ test_that("the exported ASReml script reproduces the fitted MET", {
   script <- asreml_script(res, data_file = csv, map = met_map(), axis = "rows")
   expect_match(paste(script, collapse = "\n"), "removed <- data.frame", fixed = TRUE)
 
+  run <- new.env()
+  utils::capture.output(suppressWarnings(eval(parse(text = script), envir = run)))
+  expect_equal(run$fit$loglik, res$fit$loglik, tolerance = 1e-4)
+})
+
+test_that("the exported ASReml script reproduces an fa() MET", {
+  skip_without_asreml()
+  res <- fit_met_model(prepared_met()$data, prepared_met()$names,
+                       met_options(structure = "fa", rank = 1L, auto_simplify = FALSE))
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(sample_met_trial(), csv, row.names = FALSE)
+  script <- asreml_script(res, data_file = csv, map = met_map(), axis = "rows")
+
+  # The script sets the option globally, as a user's session would.
+  withr::defer(asreml::asreml.options(drop.unused.levels = TRUE))
   run <- new.env()
   utils::capture.output(suppressWarnings(eval(parse(text = script), envir = run)))
   expect_equal(run$fit$loglik, res$fit$loglik, tolerance = 1e-4)

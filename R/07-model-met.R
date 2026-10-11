@@ -23,26 +23,41 @@
 #   facv       joint FA(r) over all 2E effects. Most general: direct and
 #              competitive effects may have different G x E patterns.
 #              Parameters: 2E(r + 1).
+#   fa         the same joint FA(r) covariance, fitted with ASReml's extended
+#              (sparse) factor-analytic formulation. fa() adds r latent
+#              factor-score blocks to the term it is attached to, so inside
+#              str() the model side must supply r extra genotype-sized blocks:
+#
+#                str(~ Env:Geno + Env:N1 + and(Env:N2) + FaDum1 + ... + FaDumr,
+#                    ~ fa(EffectEnv, r):id(nGeno))
+#
+#              Each FaDum is a factor with the genotype levels and no observed
+#              value, so it adds columns but no data; asreml.options(
+#              drop.unused.levels = FALSE) keeps those empty levels. The model
+#              is the same as facv at the same rank (same likelihood), but
+#              fa() usually fits faster and more stably with many
+#              environments or a high rank.
 #   diag       environment-specific variances, no between-environment
 #              correlation. The nested null model for G x E.
 #
-# The separable us(2) x FA and separate-fa() structures were withdrawn in
-# 3.9.0. Both bought convergence with an assumption the joint model does not
-# make - one shared environment pattern, or a direct-competition covariance
-# fixed at zero - and a result fitted under either was too easily read as if
-# everything in it had been estimated.
+# The separable us(2) x FA structure was withdrawn in 3.9.0: it bought
+# convergence by forcing one environment pattern on the direct and
+# competitive effects. The separate-fa() structure withdrawn at the same time
+# fixed the direct-competition covariance at zero; the "fa" structure now
+# offered is the joint model and estimates it.
 # ---------------------------------------------------------------------------
 
 MET_STRUCTURES <- c(
   "Joint factor-analytic over direct + competitive effects" = "facv",
+  "Joint factor-analytic, extended fa() formulation" = "fa",
   "Diagonal \u2014 no genetic correlation between environments" = "diag"
 )
 
 # Structures offered before 3.9.0, kept only so that an old script or saved
-# option set fails with a message that says what to use instead.
+# option set fails with a message that says what to use instead. "fa" was
+# retired at the same time but is offered again, now as the joint model.
 RETIRED_MET_STRUCTURES <- c(
-  separable = "Separable us(2) x FA",
-  fa        = "Separate fa() per effect"
+  separable = "Separable us(2) x FA"
 )
 
 #' Validate a requested MET structure, refusing the withdrawn ones.
@@ -57,8 +72,9 @@ check_met_structure <- function(structure) {
   if (structure %in% names(RETIRED_MET_STRUCTURES)) {
     stop("The '", RETIRED_MET_STRUCTURES[[structure]], "' genetic covariance ",
          "(structure = \"", structure, "\") was removed in InterPlotComp 3.9.0. ",
-         "Use structure = \"facv\" for the joint factor-analytic model, which ",
-         "estimates the direct-competition covariance, or structure = \"diag\" ",
+         "Use structure = \"facv\" or \"fa\" for the joint factor-analytic ",
+         "model, which estimates the direct-competition covariance, or ",
+         "structure = \"diag\" ",
          "for environment-specific variances with no genetic correlation.",
          call. = FALSE)
   }
@@ -76,16 +92,27 @@ check_met_structure <- function(structure) {
 #' `Env:N1 + and(Env:N2)`. Levels are assigned by recycling across records,
 #' which is arbitrary by design and never enters the fitted model. Labels are
 #' chosen so that every ASReml variance parameter can be matched by name.
+#'
+#' The `fa()` structure also needs one factor-score block per factor:
+#' `FaDum1`, ..., `FaDum<n_fa>`, each with the genotype levels and no observed
+#' value, so they add the r genotype-sized blocks `fa()` expects without
+#' adding data.
+#' @param n_fa number of factor-score dummies to add
 #' @noRd
-add_met_dummy_factors <- function(d) {
+add_met_dummy_factors <- function(d, n_fa = 0L) {
   env_levels <- levels(d$Env)
   e <- length(env_levels)
   effect_levels <- c(sprintf("D%d", seq_len(e)), sprintf("C%d", seq_len(e)))
   d$EffectEnv <- factor(rep(effect_levels, length.out = nrow(d)), levels = effect_levels)
   d$EnvDummy  <- factor(rep(env_levels, length.out = nrow(d)), levels = env_levels)
+  for (j in seq_len(n_fa)) {
+    d[[fa_dummy_name(j)]] <- factor(rep(NA_character_, nrow(d)), levels = levels(d$Geno))
+  }
   attr(d, "effect_levels") <- effect_levels
   d
 }
+
+fa_dummy_name <- function(j) paste0("FaDum", j)
 
 #' Highest sensible factor-analytic rank for E environments.
 #'
@@ -126,20 +153,25 @@ met_formulae <- function(design_terms, neighbour_names, n_geno, n_env,
     cov_part <- switch(
       structure,
       facv      = sprintf("facv(EffectEnv, %d):%s", rank, gdim),
+      fa        = sprintf("fa(EffectEnv, %d):%s", rank, gdim),
       diag      = sprintf("diag(EffectEnv):%s", gdim),
       stop("Unknown MET structure: ", structure, call. = FALSE)
     )
+    if (structure == "fa") model_part <- paste(model_part, fa_dummy_terms(rank))
     genetic <- sprintf("str(%s, ~ %s)", model_part, cov_part)
   } else {
     # The no-competition baseline must mirror the genetic structure actually
     # fitted, reduced to the direct effects only, or the likelihood-ratio test
     # would compare two models that differ in more than the competition term.
-    cov_part <- if (structure == "diag") {
-      sprintf("diag(EnvDummy):%s", gdim)
-    } else {
+    cov_part <- switch(
+      structure,
+      diag = sprintf("diag(EnvDummy):%s", gdim),
+      fa   = sprintf("fa(EnvDummy, %d):%s", rank, gdim),
       sprintf("facv(EnvDummy, %d):%s", rank, gdim)
-    }
-    genetic <- sprintf("str(~ Env:%s, ~ %s)", gterm("Geno"), cov_part)
+    )
+    model_part <- sprintf("~ Env:%s", gterm("Geno"))
+    if (structure == "fa") model_part <- paste(model_part, fa_dummy_terms(rank))
+    genetic <- sprintf("str(%s, ~ %s)", model_part, cov_part)
   }
 
   random <- c(design_terms, genetic)
@@ -155,6 +187,12 @@ met_formulae <- function(design_terms, neighbour_names, n_geno, n_env,
       } else "~ dsum(~ idv(units) | Env)",
       env = globalenv())
   )
+}
+
+#' Model-side text for the `fa()` factor-score blocks: "+ FaDum1 + ... + FaDumr".
+#' @noRd
+fa_dummy_terms <- function(rank) {
+  paste0("+ ", fa_dummy_name(seq_len(rank)), collapse = " ")
 }
 
 #' Ordered nested specifications for the MET fallback ladder.
@@ -239,8 +277,10 @@ met_specifications <- function(structure, rank, spatial, nugget, design_terms,
 #'   carrying the neighbour factors added by [add_neighbours()].
 #' @param neighbour_names Names of the neighbour factors, from
 #'   [add_neighbours()].
-#' @param opts Named list of fitting options: `structure` (`"facv"` or
-#'   `"diag"`; the `"separable"` and `"fa"` structures were removed in 3.9.0),
+#' @param opts Named list of fitting options: `structure` (`"facv"`, `"fa"` or
+#'   `"diag"`; `"facv"` and `"fa"` are the same joint factor-analytic model,
+#'   `"fa"` fitted with ASReml's extended formulation, which adds dummy
+#'   factor-score terms; the `"separable"` structure was removed in 3.9.0),
 #'   `rank`, `spatial`, `nugget`, `auto_simplify`, `exact_se`,
 #'   `compare_baseline`, `maxit`, `workspace`, `cinv_limit`, an optional
 #'   `relationship` from [build_relationship()], and:
@@ -294,7 +334,8 @@ fit_met_once <- function(d, neighbour_names, opts, progress = NULL) {
     coverage <- aligned$coverage
   }
 
-  d <- add_met_dummy_factors(d)
+  n_fa <- if (identical(opts$structure, "fa")) as.integer(opts$rank) else 0L
+  d <- add_met_dummy_factors(d, n_fa)
   effect_levels <- attr(d, "effect_levels")
   env_levels <- levels(d$Env)
   genotypes <- levels(d$Geno)
@@ -308,8 +349,10 @@ fit_met_once <- function(d, neighbour_names, opts, progress = NULL) {
     rownames(d) <- NULL
   }
 
-  n_coef <- n_model_coefficients(d, design_terms, n_geno, k_blocks = 2L * n_env)
+  n_coef <- n_model_coefficients(d, design_terms, n_geno,
+                                 k_blocks = 2L * n_env + n_fa)
   want_cinv <- isTRUE(opts$exact_se) && n_coef <= (opts$cinv_limit %||% 5000L)
+  old_drop <- asreml::asreml.options()$drop.unused.levels
   old_options <- asreml::asreml.options(Cinv = want_cinv)
   on.exit(do.call(asreml::asreml.options, old_options), add = TRUE)
 
@@ -336,6 +379,11 @@ fit_met_once <- function(d, neighbour_names, opts, progress = NULL) {
       trace = FALSE, keep.order = TRUE
     )
     if (competition) args$equate.levels <- unname(c("Geno", neighbour_names))
+    if (identical(spec$structure, "fa")) {
+      # The FaDum factors have no observed level, and ASReml must keep them.
+      old <- asreml::asreml.options(drop.unused.levels = FALSE)
+      on.exit(do.call(asreml::asreml.options, old), add = TRUE)
+    }
     do.call(asreml::asreml, args)
   }
 
@@ -347,6 +395,12 @@ fit_met_once <- function(d, neighbour_names, opts, progress = NULL) {
   run <- run_fit_ladder(specs, fit_one, isTRUE(opts$auto_simplify), progress)
   fit <- run$fit
   spec <- run$spec
+  if (identical(spec$structure, "fa")) {
+    # update(), predict() and the baseline refit all rebuild the design and
+    # would drop the empty FaDum levels again; keep them until the fit ends.
+    asreml::asreml.options(drop.unused.levels = FALSE)
+    on.exit(asreml::asreml.options(drop.unused.levels = old_drop), add = TRUE)
+  }
 
   # See fit_single_model(): continue the fit until ASReml reports convergence.
   extra <- iterate_to_convergence(fit, opts$max_rounds %||% 15L,
@@ -393,7 +447,7 @@ fit_met_once <- function(d, neighbour_names, opts, progress = NULL) {
     values = values,
     variance = met_variance_table(parts),
     varcomp = variance_component_table(fit, env_levels),
-    fa_summary = if (identical(spec$structure, "facv")) {
+    fa_summary = if (spec$structure %in% c("facv", "fa")) {
       fa_variance_explained(fit, spec, effect_levels, env_levels)
     } else NULL,
     correlations_assumed = identical(spec$structure, "diag"),
@@ -586,11 +640,11 @@ met_variance_table <- function(parts) {
 #' @noRd
 fa_variance_explained <- function(fit, spec, effect_levels, env_levels) {
   p <- parameter_table(fit)
-  factor_name <- "EffectEnv"
   levels_used <- effect_levels
+  prefix <- fa_parameter_prefix(spec$structure)
 
   grab <- function(level, suffix) {
-    key <- paste0("!", factor_name, "_", level, "!", suffix)
+    key <- paste0(prefix, level, "!", suffix)
     hit <- which(endsWith(p$Parameter, key))
     if (length(hit)) p$Estimate[hit[1]] else NA_real_
   }
@@ -623,6 +677,9 @@ describe_met_model <- function(spec, k, n_env, relationship = NULL,
     spec$structure,
     facv = sprintf("joint FA(%d) covariance over %d direct and %d competitive environment effects",
                    spec$rank, n_env, n_env),
+    fa = sprintf(paste("joint FA(%d) covariance, extended fa() formulation, over",
+                       "%d direct and %d competitive environment effects"),
+                 spec$rank, n_env, n_env),
     diag = "diagonal genetic covariance with no between-environment correlation"
   )
   paste0(

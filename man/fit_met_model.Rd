@@ -13,8 +13,10 @@ carrying the neighbour factors added by \code{\link[=add_neighbours]{add_neighbo
 \item{neighbour_names}{Names of the neighbour factors, from
 \code{\link[=add_neighbours]{add_neighbours()}}.}
 
-\item{opts}{Named list of fitting options: \code{structure} (\code{"facv"} or
-\code{"diag"}; the \code{"separable"} and \code{"fa"} structures were removed in 3.9.0),
+\item{opts}{Named list of fitting options: \code{structure} (\code{"facv"}, \code{"fa"} or
+\code{"diag"}; \code{"facv"} and \code{"fa"} are the same joint factor-analytic model,
+\code{"fa"} fitted with ASReml's extended formulation, which adds dummy
+factor-score terms; the \code{"separable"} structure was removed in 3.9.0),
 \code{rank}, \code{spatial}, \code{nugget}, \code{auto_simplify}, \code{exact_se},
 \code{compare_baseline}, \code{maxit}, \code{workspace}, \code{cinv_limit}, an optional
 \code{relationship} from \code{\link[=build_relationship]{build_relationship()}}, and:

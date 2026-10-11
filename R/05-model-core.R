@@ -419,10 +419,10 @@ genetic_covariance_2x2 <- function(fit, structure) {
 #' factor, for example `Env:Geno+Env:N1+and(Env:N2)!EffectEnv_D2!fa1`. The
 #' application controls those level names, so every parameter can be placed by
 #' name and none of the fragile positional parsing of earlier versions is
-#' needed.
+#' needed. `fa()` drops the factor name: `...!D2!fa1`.
 #'
 #' @param fit fitted asreml object
-#' @param structure "facv" or "diag"
+#' @param structure "facv", "fa" or "diag"
 #' @param effect_levels level names of the 2E-level effect factor, direct first
 #' @param env_levels level names of the E-level environment factor
 #' @param rank factor-analytic rank
@@ -433,9 +433,9 @@ genetic_covariance_met <- function(fit, structure, effect_levels,
   if (!nrow(p)) stop("ASReml returned no variance parameters.", call. = FALSE)
   dim <- length(effect_levels)
 
-  # Match "<anything>!<factor>_<level>!<suffix>" or "...!<factor>_<level>".
-  value_for <- function(levels, factor_name, suffix = NULL) {
-    key <- paste0("!", factor_name, "_", levels)
+  # Match "<anything><prefix><level>!<suffix>" or "...<prefix><level>".
+  value_for <- function(levels, prefix, suffix = NULL) {
+    key <- paste0(prefix, levels)
     if (!is.null(suffix)) key <- paste0(key, "!", suffix)
     idx <- vapply(key, function(k) {
       hit <- which(endsWith(p$Parameter, k))
@@ -445,22 +445,24 @@ genetic_covariance_met <- function(fit, structure, effect_levels,
   }
 
   if (structure == "diag") {
-    v <- value_for(effect_levels, "EffectEnv")
+    v <- value_for(effect_levels, "!EffectEnv_")
     if (anyNA(v)) stop_extract("the diagonal MET genetic variances")
     G <- diag(as.numeric(v), dim)
     note <- "Diagonal: environment-specific variances with no genetic correlation between environments."
 
-  } else if (structure == "facv") {
-    psi <- value_for(effect_levels, "EffectEnv", "var")
+  } else if (structure %in% c("facv", "fa")) {
+    prefix <- fa_parameter_prefix(structure)
+    psi <- value_for(effect_levels, prefix, "var")
     L <- vapply(seq_len(rank), function(r) {
-      as.numeric(value_for(effect_levels, "EffectEnv", paste0("fa", r)))
+      as.numeric(value_for(effect_levels, prefix, paste0("fa", r)))
     }, numeric(dim))
     L <- matrix(L, nrow = dim, ncol = rank)
     if (anyNA(psi) || anyNA(L)) stop_extract("the factor-analytic MET parameters")
     G <- L %*% t(L) + diag(as.numeric(psi), dim)
     note <- sprintf(
-      "Joint FA(%d) over %d direct and %d competitive environment effects: G = Lambda Lambda' + Psi.",
-      rank, dim / 2, dim / 2)
+      "Joint FA(%d)%s over %d direct and %d competitive environment effects: G = Lambda Lambda' + Psi.",
+      rank, if (structure == "fa") ", extended fa() formulation," else "",
+      dim / 2, dim / 2)
 
   } else {
     stop("Unknown MET structure: ", structure, call. = FALSE)
@@ -468,6 +470,13 @@ genetic_covariance_met <- function(fit, structure, effect_levels,
 
   if (anyNA(G)) stop_extract("the joint MET genetic covariance matrix")
   list(matrix = (G + t(G)) / 2, note = note)
+}
+
+#' Name prefix of the factor-analytic parameters: facv() writes
+#' `!EffectEnv_D1!fa1`, fa() writes `!D1!fa1`.
+#' @noRd
+fa_parameter_prefix <- function(structure) {
+  if (identical(structure, "fa")) "!" else "!EffectEnv_"
 }
 
 #' Split a joint 2E x 2E (or 2 x 2) genetic matrix into its interpretable parts.

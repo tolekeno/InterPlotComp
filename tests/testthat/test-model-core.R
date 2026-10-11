@@ -208,6 +208,27 @@ test_that("met_formulae builds the factor-analytic structures", {
                "dsum(~ar1(Column):ar1(Row)|Env)", fixed = TRUE)
 })
 
+test_that("met_formulae adds one fa() factor-score dummy per factor", {
+  f <- met_formulae("RepF", c("N1", "N2"), 40, 4, structure = "fa", rank = 2,
+                    spatial = TRUE, nugget = FALSE)
+  txt <- formula_text(f$random)
+  expect_match(txt, "and(Env:N2)+FaDum1+FaDum2", fixed = TRUE)
+  expect_match(txt, "fa(EffectEnv,2):id(40)", fixed = TRUE)
+  expect_false(grepl("FaDum3", txt, fixed = TRUE))
+
+  base <- formula_text(met_formulae("RepF", c("N1", "N2"), 40, 4, structure = "fa",
+                                    rank = 1, competition = FALSE)$random)
+  expect_match(base, "str(~Env:Geno+FaDum1,~fa(EnvDummy,1):id(40))", fixed = TRUE)
+})
+
+test_that("add_met_dummy_factors adds empty genotype-level fa() dummies", {
+  d <- data.frame(Env = factor(c("A", "B", "A")), Geno = factor(c("g1", "g2", "g3")))
+  out <- add_met_dummy_factors(d, 2L)
+  expect_identical(levels(out$FaDum2), levels(d$Geno))
+  expect_true(all(is.na(out$FaDum1)))
+  expect_false("FaDum1" %in% names(add_met_dummy_factors(d)))
+})
+
 test_that("met_formulae builds the diagonal structure inside str()", {
   f <- met_formulae("RepF", c("N1", "N2"), 40, 4, structure = "diag",
                     spatial = TRUE, nugget = FALSE)

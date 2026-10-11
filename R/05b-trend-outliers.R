@@ -550,7 +550,7 @@ asreml_script <- function(result, data_file = NULL, map = NULL, axis = "rows",
 
   if (code$multi_env) {
     lines <- c(lines, "",
-      "# facv() needs a factor with one level per direct and per competitive",
+      "# facv() and fa() need a factor with one level per direct and per competitive",
       "# environment effect; only its level count and labels matter.",
       "e <- levels(d$Env)",
       "effect_levels <- c(sprintf(\"D%d\", seq_along(e)), sprintf(\"C%d\", seq_along(e)))",
@@ -596,6 +596,20 @@ asreml_script <- function(result, data_file = NULL, map = NULL, axis = "rows",
       "# The separable residual needs rows varying fastest within columns.",
       if (code$multi_env) "d <- d[order(d$Env, d$Col_i, d$Row_i), ]"
       else "d <- d[order(d$Col_i, d$Row_i), ]")
+  }
+
+  # The fa() structure fits r factor-score blocks, supplied as empty
+  # genotype-level factors that ASReml must be told to keep. They are added
+  # last, after any relationship matrix has re-levelled Geno.
+  n_fa <- length(unique(regmatches(code$random,
+                                   gregexpr("FaDum[0-9]+", code$random))[[1]]))
+  if (n_fa) {
+    lines <- c(lines, "",
+      "# fa() adds one factor-score block per factor; each FaDum factor supplies",
+      "# one genotype-sized block and carries no observed value.",
+      "asreml::asreml.options(drop.unused.levels = FALSE)",
+      sprintf(paste0("for (j in seq_len(%d)) d[[paste0(\"FaDum\", j)]] <- ",
+                     "factor(rep(NA, nrow(d)), levels = levels(d$Geno))"), n_fa))
   }
 
   lines <- c(lines, "",

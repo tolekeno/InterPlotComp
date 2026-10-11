@@ -336,6 +336,12 @@ guide_ui <- function(id) {
                            "direct and competitive effects have different ",
                            "patterns of genotype-by-environment interaction. ",
                            "Most general; needs the most data."),
+            shiny::tags$li(shiny::strong("Joint factor-analytic, extended fa()"),
+                           " is the same model fitted with ASReml's sparse ",
+                           "fa() formulation, which adds one dummy ",
+                           "factor-score term per factor. It reaches the same ",
+                           "likelihood and is often faster and more stable ",
+                           "with many environments or a higher rank."),
             shiny::tags$li(shiny::strong("Diagonal"), " estimates no ",
                            "between-environment correlation at all. Use it as ",
                            "the null model, not as a result.")
