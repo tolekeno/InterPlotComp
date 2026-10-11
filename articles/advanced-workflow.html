@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -151,15 +151,27 @@ matrix:</p>
 competitive effects</td>
 <td>most</td>
 </tr>
+<tr class="odd">
+<td><code>"fa"</code></td>
+<td>The same joint model, fitted with ASReml’s extended
+<code>fa()</code> formulation</td>
+<td>most</td>
+</tr>
 </tbody>
 </table>
 <p><code>"facv"</code> is the model you want: it lets the
 direct–competition covariance differ between environments and estimates
 it rather than assuming it. If it will not fit, lower the
-factor-analytic rank; <code>"diag"</code> is the nested null model. The
-<code>"separable"</code> and <code>"fa"</code> structures of earlier
-versions were withdrawn in 3.9.0, and asking for them is now an error
-that names the replacement.</p>
+factor-analytic rank; <code>"diag"</code> is the nested null model.
+<code>"fa"</code> reaches the same likelihood as <code>"facv"</code> at
+the same rank through ASReml’s sparse formulation. Because
+<code>fa()</code> adds r latent factor-score blocks to its term,
+<code><a href="../reference/fit_met_model.html">fit_met_model()</a></code> appends r empty genotype-level dummy
+factors, <code>FaDum1</code> to <code>FaDumr</code>, to the model side
+of <code><a href="https://rdrr.io/r/utils/str.html" class="external-link">str()</a></code> and fits with
+<code>asreml.options(drop.unused.levels = FALSE)</code>. The
+<code>"separable"</code> structure of earlier versions was withdrawn in
+3.9.0, and asking for it is an error that names the replacement.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">met_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_met_model.html">fit_met_model</a></span><span class="op">(</span></span>
 <span>  <span class="va">met_nb</span><span class="op">$</span><span class="va">data</span>, <span class="va">met_nb</span><span class="op">$</span><span class="va">names</span>,</span>

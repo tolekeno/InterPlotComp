@@ -1,5 +1,33 @@
 # Changelog
 
+## InterPlotComp 3.11.0
+
+- **New MET structure: joint factor-analytic, extended `fa()`
+  formulation** (`structure = "fa"`). It fits the same joint FA(r)
+  covariance over the direct and competitive environment effects as
+  `"facv"`, through ASReml’s sparse `fa()` parameterisation:
+
+  ``` r
+
+  str(~ Env:Geno + Env:N1 + and(Env:N2) + FaDum1 + ... + FaDumr,
+      ~ fa(EffectEnv, r):id(nGeno))
+  ```
+
+  `fa()` adds r latent factor-score blocks to its term, so the model
+  side carries r dummy factors with the genotype levels and no observed
+  value, and the fit runs with
+  `asreml.options(drop.unused.levels = FALSE)`. On the worked example at
+  rank 1 it reaches the same log-likelihood as `"facv"` (-49.448 against
+  -49.447); at higher ranks with few sites, where specific variances sit
+  on the boundary, the two can stop at slightly different points. The
+  factor-analytic summary, the loadings, the rank ladder, a relationship
+  matrix, the no-competition baseline and the exported ASReml script all
+  work with it.
+
+- `structure = "fa"` no longer stops with the 3.9.0 “removed” error; it
+  now means the joint model above, not the withdrawn separate-`fa()`
+  structure. `"separable"` is still refused.
+
 ## InterPlotComp 3.10.0
 
 Every model now fits random row and column effects, and a MET fits

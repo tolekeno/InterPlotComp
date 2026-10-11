@@ -28,10 +28,13 @@ fit_met_model(d, neighbour_names, opts, progress = NULL)
 
 - opts:
 
-  Named list of fitting options: `structure` (`"facv"` or `"diag"`; the
-  `"separable"` and `"fa"` structures were removed in 3.9.0), `rank`,
-  `spatial`, `nugget`, `auto_simplify`, `exact_se`, `compare_baseline`,
-  `maxit`, `workspace`, `cinv_limit`, an optional `relationship` from
+  Named list of fitting options: `structure` (`"facv"`, `"fa"` or
+  `"diag"`; `"facv"` and `"fa"` are the same joint factor-analytic
+  model, `"fa"` fitted with ASReml's extended formulation, which adds
+  dummy factor-score terms; the `"separable"` structure was removed in
+  3.9.0), `rank`, `spatial`, `nugget`, `auto_simplify`, `exact_se`,
+  `compare_baseline`, `maxit`, `workspace`, `cinv_limit`, an optional
+  `relationship` from
   [`build_relationship()`](https://tolekeno.github.io/InterPlotComp/reference/build_relationship.md),
   and:
 

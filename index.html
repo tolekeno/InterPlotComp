@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -280,7 +280,7 @@
 <span>                 <span class="op">~</span> <span class="fu">facv</span><span class="op">(</span><span class="va">EffectEnv</span>, <span class="va">r</span><span class="op">)</span><span class="op">:</span><span class="fu">id</span><span class="op">(</span><span class="va">nGeno</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">residual</span> <span class="op">=</span> <span class="op">~</span> <span class="fu">dsum</span><span class="op">(</span><span class="op">~</span> <span class="fu">ar1</span><span class="op">(</span><span class="va">Column</span><span class="op">)</span><span class="op">:</span><span class="fu">ar1</span><span class="op">(</span><span class="va">Row</span><span class="op">)</span> <span class="op">|</span> <span class="va">Env</span><span class="op">)</span></span></code></pre></div>
 <p>The 2·E direct and competitive environment effects share one joint covariance matrix. <code>dsum()</code> gives each environment its own spatial section, so trials may differ in size, and <code>at(Env):Rep</code>, <code>at(Env):Block</code>, <code>at(Env):Row</code> and <code>at(Env):Column</code> give each site its own replicate, block, row and column variance. Where block labels restart in every replicate, the block term is written <code>at(Env):Rep:Block</code> so that block 1 of one replicate is not merged with block 1 of the next. A site whose blocks are whole rows or columns is left out of the block term, since there the row or column term is the same effect. True <code>Env:Geno</code> interaction terms are used rather than a pre-combined factor, because a pre-combined factor drops the unobserved cells of a sparse genotype × environment table and then no longer conforms with its variance structure.</p>
-<p>Two structures are offered:</p>
+<p>Three structures are offered:</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -299,14 +299,24 @@
 <td>Direct and competitive effects may have different G×E patterns, and the direct–competition covariance is estimated in every environment. Most general.</td>
 </tr>
 <tr>
+<td><strong>Joint factor-analytic, extended <code>fa()</code></strong></td>
+<td>2E(r+1)</td>
+<td>The same model, fitted with ASReml’s sparse <code>fa()</code> formulation. Same likelihood; often faster and more stable with many environments or a higher rank.</td>
+</tr>
+<tr>
 <td><strong>Diagonal</strong></td>
 <td>2E</td>
 <td>No between-environment correlation. The null model for G×E.</td>
 </tr>
 </tbody>
 </table>
+<p><code>fa()</code> augments the term it is attached to with r latent factor-score blocks, so inside <code><a href="https://rdrr.io/r/utils/str.html" class="external-link">str()</a></code> the model side must supply r extra genotype-sized blocks. These are dummy factors with the genotype levels and no observed value, kept by <code>asreml.options(drop.unused.levels = FALSE)</code>:</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="op">~</span> <span class="va">Env</span><span class="op">:</span><span class="va">Geno</span> <span class="op">+</span> <span class="va">Env</span><span class="op">:</span><span class="va">N1</span> <span class="op">+</span> <span class="fu">and</span><span class="op">(</span><span class="va">Env</span><span class="op">:</span><span class="va">N2</span><span class="op">)</span> <span class="op">+</span> <span class="va">FaDum1</span> <span class="op">+</span> <span class="va">...</span> <span class="op">+</span> <span class="va">FaDumr</span>,</span>
+<span>    <span class="op">~</span> <span class="fu">fa</span><span class="op">(</span><span class="va">EffectEnv</span>, <span class="va">r</span><span class="op">)</span><span class="op">:</span><span class="fu">id</span><span class="op">(</span><span class="va">nGeno</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>The application adds the dummies and sets the option for you, and the exported ASReml script does the same.</p>
 <blockquote>
-<p><strong>Withdrawn in 3.9.0.</strong> The <em>Separable us(2) × FA</em> and <em>Separate fa() per effect</em> structures are no longer offered. Each bought convergence with an assumption the joint model does not make — one environment correlation pattern shared by the direct and competitive effects, or a direct–competition covariance fixed at zero, which on the worked example inflated the pure-stand variance by 1.3× to 8.7× — and results fitted under them were too easily read as fully estimated. A script that still asks for <code>structure = "separable"</code> or <code>"fa"</code> now stops with a message naming the replacement. When the joint model is singular, lower the factor-analytic rank; the simplification ladder does this automatically before falling back to the diagonal structure.</p>
+<p><strong>Withdrawn in 3.9.0.</strong> The <em>Separable us(2) × FA</em> and <em>Separate fa() per effect</em> structures are no longer offered. (<code>structure = "fa"</code> now means the joint model in its extended <code>fa()</code> form; see above.) Each bought convergence with an assumption the joint model does not make — one environment correlation pattern shared by the direct and competitive effects, or a direct–competition covariance fixed at zero, which on the worked example inflated the pure-stand variance by 1.3× to 8.7× — and results fitted under them were too easily read as fully estimated. A script that still asks for <code>structure = "separable"</code> now stops with a message naming the replacement. When the joint model is singular, lower the factor-analytic rank; the simplification ladder does this automatically before falling back to the diagonal structure.</p>
 </blockquote>
 <p>Pure-stand covariance across environments:</p>
 <pre><code>G_pure = G_direct + k² G_competition + k (G_dc + G_dc')</code></pre>
@@ -345,7 +355,7 @@
 </tbody>
 </table>
 <p>The model becomes</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">random</span> <span class="op">=</span> <span class="op">~</span> <span class="va">Rep</span> <span class="op">+</span> <span class="va">Block</span> <span class="op">+</span> <span class="va">Row</span> <span class="op">+</span> <span class="va">Column</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="op">~</span> <span class="fu">vm</span><span class="op">(</span><span class="va">Geno</span>, <span class="va">K</span><span class="op">)</span> <span class="op">+</span> <span class="fu">vm</span><span class="op">(</span><span class="va">N1</span>, <span class="va">K</span><span class="op">)</span> <span class="op">+</span> <span class="fu">and</span><span class="op">(</span><span class="fu">vm</span><span class="op">(</span><span class="va">N2</span>, <span class="va">K</span><span class="op">)</span><span class="op">)</span>, <span class="op">~</span> <span class="fu">us</span><span class="op">(</span><span class="fl">2</span><span class="op">)</span><span class="op">:</span><span class="fu">vm</span><span class="op">(</span><span class="va">Geno</span>, <span class="va">K</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <blockquote>
@@ -366,7 +376,7 @@
 </h3>
 <p>Interference has a physical cause. Where that cause has been measured — plant height, canopy width, root vigour — the model can use the measurement directly instead of inferring the whole effect from yield alone.</p>
 <p>Name the column and the trait is centred, the <strong>neighbouring</strong> plots’ values summed over the same neighbours that supply the competitive genetic effects, and fitted as a fixed covariate:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fixed</span> <span class="op">=</span> <span class="va">Yield</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">Covariate_nb</span>              <span class="co"># single trial</span></span>
 <span><span class="va">fixed</span> <span class="op">=</span> <span class="va">Yield</span> <span class="op">~</span> <span class="va">Env</span> <span class="op">+</span> <span class="va">Covariate_nb</span>            <span class="co"># MET</span></span></code></pre></div>
 <p>The default is a single-trait model with no adjustment. The focal plot’s own value can be added too, but is off by default: it absorbs genetic variation in the covariate and so removes part of the direct effect being estimated.</p>
@@ -545,7 +555,7 @@ _pkgdown.yml          package website configuration</code></pre>
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
 <p>Five vignettes cover the package end to end:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"InterPlotComp"</span>,        package <span class="op">=</span> <span class="st">"InterPlotComp"</span><span class="op">)</span>  <span class="co"># installation and setup</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"basic-workflow"</span>,       package <span class="op">=</span> <span class="st">"InterPlotComp"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"advanced-workflow"</span>,    package <span class="op">=</span> <span class="st">"InterPlotComp"</span><span class="op">)</span>  <span class="co"># relationships, covariates, MET</span></span>
@@ -559,32 +569,32 @@ _pkgdown.yml          package website configuration</code></pre>
 </h2>
 <p>Every figure below is real output from the packaged worked example, produced by the code shown beside it.</p>
 <p><strong>The central figure of a competition analysis.</strong> Each genotype is placed by what it expresses in its own plot against what it does to its neighbours. The downward slope is the finding that matters: the highest-yielding entries are the ones suppressing the plots they are compared against.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/plot_direct_vs_competition.html">plot_direct_vs_competition</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">genetic</span>, k <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">k</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
 <img src="reference/figures/README-direct-vs-competition.png" alt="Direct effect against competitive effect, showing a clear negative relationship"><div class="figcaption">Direct effect against competitive effect, showing a clear negative relationship</div>
 </div>
 <p><strong>Does it change who you select?</strong></p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/plot_rank_change.html">plot_rank_change</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">genetic</span>, top_n <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
 <img src="reference/figures/README-rank-change.png" alt="Slope chart of rank on the direct effect against rank on the pure-stand value"><div class="figcaption">Slope chart of rank on the direct effect against rank on the pure-stand value</div>
 </div>
 <p><strong>The field plan</strong>, the single most useful diagnostic for a spatially analysed trial — a fertility gradient, a headland effect or a mis-entered coordinate is visible immediately.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/plot_field_map.html">plot_field_map</a></span><span class="op">(</span><span class="va">field</span>, <span class="st">"Observed"</span>, title <span class="op">=</span> <span class="st">"Observed yield on the field plan"</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
 <img src="reference/figures/README-field-plan.png" alt="Heatmap of observed yield on the physical field layout"><div class="figcaption">Heatmap of observed yield on the physical field layout</div>
 </div>
 <p>The Shiny interface presents all of this across three workspaces — <strong>Single trial</strong>, <strong>Multi-environment</strong> and <strong>Guide</strong> — with every table and figure exportable:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">InterPlotComp</span><span class="fu">::</span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="testing">Testing<a class="anchor" aria-label="anchor" href="#testing"></a>
 </h2>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>168 tests, 541 expectations, about 40 seconds.</p>
 <p>The suite runs without ASReml-R: every test that fits a model skips cleanly when the engine is absent or unlicensed, so the package is contributable without a commercial licence. With a licence available, the end-to-end tests additionally check that the fitted model recovers the parameters the worked examples were simulated from.</p>
@@ -601,7 +611,7 @@ _pkgdown.yml          package website configuration</code></pre>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/citation.html" class="external-link">citation</a></span><span class="op">(</span><span class="st">"InterPlotComp"</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>

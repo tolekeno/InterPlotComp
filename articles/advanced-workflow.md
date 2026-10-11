@@ -73,13 +73,20 @@ head(levels(met_nb$data$RepF))
 |----|----|----|
 | `"diag"` | No genetic correlation between environments | fewest |
 | `"facv"` | Joint factor-analytic covariance over direct *and* competitive effects | most |
+| `"fa"` | The same joint model, fitted with ASReml’s extended `fa()` formulation | most |
 
 `"facv"` is the model you want: it lets the direct–competition
 covariance differ between environments and estimates it rather than
 assuming it. If it will not fit, lower the factor-analytic rank;
-`"diag"` is the nested null model. The `"separable"` and `"fa"`
-structures of earlier versions were withdrawn in 3.9.0, and asking for
-them is now an error that names the replacement.
+`"diag"` is the nested null model. `"fa"` reaches the same likelihood as
+`"facv"` at the same rank through ASReml’s sparse formulation. Because
+`fa()` adds r latent factor-score blocks to its term,
+[`fit_met_model()`](https://tolekeno.github.io/InterPlotComp/reference/fit_met_model.md)
+appends r empty genotype-level dummy factors, `FaDum1` to `FaDumr`, to
+the model side of [`str()`](https://rdrr.io/r/utils/str.html) and fits
+with `asreml.options(drop.unused.levels = FALSE)`. The `"separable"`
+structure of earlier versions was withdrawn in 3.9.0, and asking for it
+is an error that names the replacement.
 
 ``` r
 

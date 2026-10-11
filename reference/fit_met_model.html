@@ -11,7 +11,7 @@ environment. Requires 'ASReml-R' and a valid licence."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -73,8 +73,10 @@ carrying the neighbour factors added by <code><a href="add_neighbours.html">add_
 
 
 <dt id="arg-opts">opts<a class="anchor" aria-label="anchor" href="#arg-opts"></a></dt>
-<dd><p>Named list of fitting options: <code>structure</code> (<code>"facv"</code> or
-<code>"diag"</code>; the <code>"separable"</code> and <code>"fa"</code> structures were removed in 3.9.0),
+<dd><p>Named list of fitting options: <code>structure</code> (<code>"facv"</code>, <code>"fa"</code> or
+<code>"diag"</code>; <code>"facv"</code> and <code>"fa"</code> are the same joint factor-analytic model,
+<code>"fa"</code> fitted with ASReml's extended formulation, which adds dummy
+factor-score terms; the <code>"separable"</code> structure was removed in 3.9.0),
 <code>rank</code>, <code>spatial</code>, <code>nugget</code>, <code>auto_simplify</code>, <code>exact_se</code>,
 <code>compare_baseline</code>, <code>maxit</code>, <code>workspace</code>, <code>cinv_limit</code>, an optional
 <code>relationship</code> from <code><a href="build_relationship.html">build_relationship()</a></code>, and:</p><ul><li><p><code>field_trend</code> - global field-trend adjustment (Gilmour, Cullis &amp;

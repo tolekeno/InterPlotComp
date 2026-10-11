@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">InterPlotComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,6 +42,17 @@
       <small>Source: <a href="https://github.com/tolekeno/InterPlotComp/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="3.11.0" id="interplotcomp-3110">InterPlotComp 3.11.0<a class="anchor" aria-label="anchor" href="#interplotcomp-3110"></a></h2>
+<ul><li>
+<p><strong>New MET structure: joint factor-analytic, extended <code>fa()</code> formulation</strong> (<code>structure = "fa"</code>). It fits the same joint FA(r) covariance over the direct and competitive environment effects as <code>"facv"</code>, through ASReml’s sparse <code>fa()</code> parameterisation:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="op">~</span> <span class="va">Env</span><span class="op">:</span><span class="va">Geno</span> <span class="op">+</span> <span class="va">Env</span><span class="op">:</span><span class="va">N1</span> <span class="op">+</span> <span class="fu">and</span><span class="op">(</span><span class="va">Env</span><span class="op">:</span><span class="va">N2</span><span class="op">)</span> <span class="op">+</span> <span class="va">FaDum1</span> <span class="op">+</span> <span class="va">...</span> <span class="op">+</span> <span class="va">FaDumr</span>,</span>
+<span>    <span class="op">~</span> <span class="fu">fa</span><span class="op">(</span><span class="va">EffectEnv</span>, <span class="va">r</span><span class="op">)</span><span class="op">:</span><span class="fu">id</span><span class="op">(</span><span class="va">nGeno</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><code>fa()</code> adds r latent factor-score blocks to its term, so the model side carries r dummy factors with the genotype levels and no observed value, and the fit runs with <code>asreml.options(drop.unused.levels = FALSE)</code>. On the worked example at rank 1 it reaches the same log-likelihood as <code>"facv"</code> (-49.448 against -49.447); at higher ranks with few sites, where specific variances sit on the boundary, the two can stop at slightly different points. The factor-analytic summary, the loadings, the rank ladder, a relationship matrix, the no-competition baseline and the exported ASReml script all work with it.</p>
+</li>
+<li><p><code>structure = "fa"</code> no longer stops with the 3.9.0 “removed” error; it now means the joint model above, not the withdrawn separate-<code>fa()</code> structure. <code>"separable"</code> is still refused.</p></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="3.10.0" id="interplotcomp-3100">InterPlotComp 3.10.0<a class="anchor" aria-label="anchor" href="#interplotcomp-3100"></a></h2>
 <p>Every model now fits random row and column effects, and a MET fits separate replicate and block variances at each site, so fitted variances and genotype predictions differ from 3.9.0 for the same data and options.</p>
